@@ -236,10 +236,12 @@ def terminal_page():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'message': 'No file provided.'}), 400
-
+    # Support both 'file' and 'files[]' field names
     files = request.files.getlist('file')
+    if not files:
+        files = request.files.getlist('files[]')
+    if not files:
+        return jsonify({'success': False, 'message': 'No file provided.'}), 400
     target_dir = request.form.get('path', '').strip('/')
     uploaded = []
 
@@ -1022,14 +1024,16 @@ def user_upload():
     if not user:
         return jsonify({'success': False, 'message': 'User not found.'}), 404
 
-    if 'file' not in request.files:
+    # Support both 'file' and 'files[]' field names
+    files = request.files.getlist('file')
+    if not files:
+        files = request.files.getlist('files[]')
+    if not files:
         return jsonify({'success': False, 'message': 'No file provided.'}), 400
 
     # Check storage quota
     current_storage = get_user_storage_used(username)
     max_storage = user.get('storage_mb', DEFAULT_QUOTA['storage_mb']) * 1024 * 1024
-
-    files = request.files.getlist('file')
     total_new_size = 0
     for f in files:
         f.seek(0, 2)  # seek to end
