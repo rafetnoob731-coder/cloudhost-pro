@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: cloudhost-pro
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 30
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: false
+    healthCheckPath: /
