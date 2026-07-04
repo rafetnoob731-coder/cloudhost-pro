@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% if dashboard %}Dashboard{% elif file_manager %}My Files{% elif profile %}Profile{% else %}Panel{% endif %} — {{ username }} • CloudHost Pro</title>
+    <meta name="description" content="User Panel - CloudHost Pro">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; background:#08081a; color:#e0e0ff; min-height:100vh; display:flex; }
+
+        :root {
+            --side-bg: #0d0d24;
+            --side-hover: rgba(108,92,231,0.08);
+            --side-active: rgba(108,92,231,0.15);
+            --accent: #6c5ce7;
+            --accent2: #00cec9;
+            --card-bg: #151540;
+            --border: rgba(108,92,231,0.15);
+            --text-main: #e0e0ff;
+            --text-mute: #7a7aaa;
+        }
+
+        /* ─── SIDEBAR ─── */
+        .user-side {
+            width: 240px; min-height:100vh; background:var(--side-bg);
+            border-right:1px solid var(--border); display:flex;
+            flex-direction:column; position:fixed; left:0; top:0; bottom:0; z-index:100;
+            transition: transform 0.3s ease;
+        }
+        .user-side-brand {
+            display:flex; align-items:center; gap:10px;
+            padding:20px 20px 16px; border-bottom:1px solid var(--border);
+            font-size:1.15rem; font-weight:800;
+        }
+        .user-side-brand a { text-decoration:none; color:inherit; display:flex; align-items:center; gap:10px; }
+        .user-side-brand span { background:linear-gradient(135deg,#6c5ce7,#00cec9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .user-side-user {
+            padding:14px 20px; border-bottom:1px solid var(--border);
+            font-size:0.82rem; color:var(--text-mute);
+        }
+        .user-side-user strong { color:var(--text-main); }
+        .user-side-nav { flex:1; padding:12px 10px; overflow-y:auto; }
+        .user-side-nav a {
+            display:flex; align-items:center; gap:10px;
+            padding:10px 14px; border-radius:10px;
+            font-size:0.85rem; font-weight:500; color:var(--text-mute);
+            text-decoration:none; transition:all 0.2s; margin-bottom:2px;
+        }
+        .user-side-nav a:hover { background:var(--side-hover); color:var(--text-main); }
+        .user-side-nav a:active { transform:scale(0.97); }
+        .user-side-nav a.active {
+            background:var(--side-active); color:var(--accent);
+            border-left:3px solid var(--accent); border-radius:10px 4px 4px 10px;
+        }
+        .user-side-nav a i { width:18px; text-align:center; font-size:0.95rem; }
+        .user-side-nav .nav-label {
+            font-size:0.7rem; color:var(--text-mute); text-transform:uppercase;
+            letter-spacing:0.8px; padding:16px 14px 6px; font-weight:600;
+        }
+        .user-side-foot { padding:14px 16px; border-top:1px solid var(--border); }
+        .user-side-foot a {
+            display:flex; align-items:center; gap:8px;
+            font-size:0.82rem; color:var(--text-mute);
+            text-decoration:none; padding:6px 0;
+            transition:color 0.2s;
+        }
+        .user-side-foot a:hover { color:#e17055; }
+
+        /* ─── Mobile sidebar toggle ─── */
+        .sidebar-overlay {
+            display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+            z-index:99; backdrop-filter:blur(4px);
+        }
+        .sidebar-overlay.show { display:block; }
+
+        /* ─── MAIN ─── */
+        .user-main {
+            flex:1; margin-left:240px; padding:0; min-height:100vh;
+            transition: margin-left 0.3s ease;
+        }
+        .user-top {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:14px 28px; background:rgba(13,13,36,0.85);
+            backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
+            position:sticky; top:0; z-index:50;
+        }
+        .user-top-left { display:flex; align-items:center; gap:12px; }
+        .user-top-left .menu-toggle {
+            display:none; width:36px; height:36px; align-items:center;
+            justify-content:center; background:var(--card-bg);
+            border:1px solid var(--border); border-radius:10px;
+            cursor:pointer; color:var(--text-mute); font-size:1.1rem;
+            transition:all 0.2s;
+        }
+        .user-top-left .menu-toggle:hover { color:var(--text-main); border-color:var(--accent); }
+        .user-top h2 { font-size:1.1rem; font-weight:700; }
+        .user-top-right { display:flex; align-items:center; gap:10px; }
+        .user-badge {
+            display:flex; align-items:center; gap:6px;
+            padding:5px 14px; background:rgba(108,92,231,0.1);
+            border-radius:50px; font-size:0.8rem; font-weight:500;
+        }
+        .user-badge i { color:var(--accent); }
+
+        .user-content { padding:24px 28px; max-width:1200px; }
+
+        /* ─── PAGE TITLE ─── */
+        .page-title { margin-bottom:24px; }
+        .page-title h1 { font-size:1.5rem; font-weight:800; display:flex; align-items:center; gap:10px; }
+        .page-title p { color:var(--text-mute); font-size:0.85rem; margin-top:4px; }
+
+        /* ─── RESOURCE CARDS ─── */
+        .resource-grid {
+            display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+            gap:16px; margin-bottom:28px;
+        }
+        .resource-card {
+            background:var(--card-bg); border:1px solid var(--border);
+            border-radius:14px; padding:22px; transition:all 0.3s;
+        }
+        .resource-card:hover {
+            border-color:rgba(108,92,231,0.3);
+            transform:translateY(-2px); box-shadow:0 8px 32px rgba(108,92,231,0.12);
+        }
+        .resource-card .rc-icon { font-size:1.8rem; margin-bottom:8px; display:block; }
+        .resource-card .rc-value { font-size:1.5rem; font-weight:800; display:block; }
+        .resource-card .rc-label { font-size:0.78rem; color:var(--text-mute); display:block; margin-top:2px; }
+        .resource-card .rc-bar {
+            width:100%; height:5px; background:rgba(255,255,255,0.05);
+            border-radius:3px; overflow:hidden; margin-top:10px;
+        }
+        .resource-card .rc-bar-fill { height:100%; border-radius:3px; transition:width 1s ease; }
+        .rc-bar-fill.green { background:linear-gradient(135deg,#00b894,#00cec9); }
+        .rc-bar-fill.yellow { background:linear-gradient(135deg,#fdcb6e,#e17055); }
+        .rc-bar-fill.red { background:linear-gradient(135deg,#e17055,#d63031); }
+        .resource-card .rc-detail { font-size:0.75rem; color:var(--text-mute); margin-top:6px; }
+        .grad-1 { background:linear-gradient(135deg,#6c5ce7,#a29bfe); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .grad-2 { background:linear-gradient(135deg,#00cec9,#00b894); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+        /* ─── UPLOAD ZONE ─── */
+        .upload-zone {
+            border:2px dashed var(--border); border-radius:14px;
+            padding:36px 28px; text-align:center; transition:all 0.3s;
+            cursor:pointer; margin-bottom:24px;
+            background:rgba(108,92,231,0.02);
+        }
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color:var(--accent); background:rgba(108,92,231,0.06);
+            box-shadow:0 0 40px rgba(108,92,231,0.08);
+        }
+        .upload-zone i { font-size:2.5rem; color:var(--accent); margin-bottom:8px; }
+        .upload-zone h3 { font-size:1.05rem; margin-bottom:4px; }
+        .upload-zone p { color:var(--text-mute); font-size:0.85rem; }
+        .upload-zone .allowed { margin-top:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+        .allowed .type-badge {
+            display:inline-flex; align-items:center; gap:5px;
+            padding:4px 14px; border-radius:50px; font-size:0.8rem; font-weight:600;
+            background:rgba(108,92,231,0.08); border:1px solid var(--border);
+        }
+
+        /* ─── SECTION TITLE ─── */
+        .section-title {
+            display:flex; align-items:center; justify-content:space-between;
+            margin-bottom:14px;
+        }
+        .section-title h2 {
+            font-size:1.05rem; font-weight:700;
+            display:flex; align-items:center; gap:8px;
+        }
+        .section-title h2 i { color:var(--accent); }
+
+        /* ─── FILE GRID ─── */
+        .file-grid {
+            display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+            gap:10px; margin-bottom:24px;
+        }
+        .file-card {
+            display:flex; align-items:center; gap:12px;
+            padding:12px 16px; background:var(--card-bg);
+            border:1px solid var(--border); border-radius:12px;
+            transition:all 0.2s;
+        }
+        .file-card:hover { border-color:rgba(108,92,231,0.3); }
+        .file-card-icon {
+            width:36px; height:36px; border-radius:10px;
+            display:flex; align-items:center; justify-content:center;
+            font-size:1.2rem; background:rgba(108,92,231,0.1);
+        }
+        .file-card-info { flex:1; min-width:0; }
+        .file-card-info .file-name {
+            font-size:0.85rem; font-weight:600; overflow:hidden;
+            text-overflow:ellipsis; white-space:nowrap;
+        }
+        .file-card-info .file-meta {
+            display:flex; gap:12px; font-size:0.72rem; color:var(--text-mute); margin-top:2px;
+        }
+        .file-card-actions { display:flex; gap:4px; }
+
+        /* ─── TABLE ─── */
+        .table-wrap {
+            background:var(--card-bg); border:1px solid var(--border);
+            border-radius:12px; overflow:hidden; margin-bottom:24px;
+        }
+        .table-wrap table {
+            width:100%; border-collapse:collapse; font-size:0.85rem;
+        }
+        .table-wrap th {
+            text-align:left; padding:12px 16px; font-weight:600;
+            color:var(--text-mute); font-size:0.75rem; text-transform:uppercase;
+            letter-spacing:0.5px; border-bottom:1px solid var(--border);
+            background:rgba(0,0,0,0.2);
+        }
+        .table-wrap td {
+            padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.03);
+            vertical-align:middle;
+        }
+        .table-wrap tr:hover td { background:rgba(108,92,231,0.03); }
+
+        /* ─── PROFILE ─── */
+        .profile-grid {
+            display:grid; grid-template-columns:1fr 1fr; gap:20px;
+        }
+        .profile-card {
+            background:var(--card-bg); border:1px solid var(--border);
+            border-radius:14px; padding:24px;
+        }
+        .profile-card h3 {
+            font-size:0.95rem; font-weight:700; margin-bottom:16px;
+            display:flex; align-items:center; gap:8px;
+        }
+        .profile-card h3 i { color:var(--accent); }
+        .profile-field {
+            display:flex; justify-content:space-between; align-items:center;
+            padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04);
+        }
+        .profile-field:last-child { border-bottom:none; }
+        .profile-field .pf-label { font-size:0.82rem; color:var(--text-mute); }
+        .profile-field .pf-value { font-size:0.9rem; font-weight:600; }
+        .profile-avatar {
+            width:64px; height:64px; border-radius:50%;
+            background:linear-gradient(135deg,#6c5ce7,#00cec9);
+            display:flex; align-items:center; justify-content:center;
+            font-size:2rem; font-weight:700; margin-bottom:16px;
+        }
+
+        /* ─── EMPTY STATE ─── */
+        .empty-state {
+            text-align:center; padding:60px 20px; color:var(--text-mute);
+        }
+        .empty-state i { font-size:3rem; opacity:0.3; margin-bottom:12px; display:block; }
+        .empty-state h3 { font-size:1.1rem; margin-bottom:4px; color:var(--text-main); }
+        .empty-state p { font-size:0.85rem; }
+
+        /* ─── UTILITY ─── */
+        .btn-icon {
+            width:32px; height:32px; border:none; border-radius:8px;
+            background:rgba(255,255,255,0.04); color:var(--text-mute);
+            cursor:pointer; display:inline-flex; align-items:center;
+            justify-content:center; transition:all 0.2s; font-size:0.82rem;
+        }
+        .btn-icon:hover { background:rgba(108,92,231,0.15); color:var(--accent); }
+        .btn-sm {
+            padding:8px 16px; border-radius:8px; font-size:0.8rem;
+            font-weight:600; cursor:pointer; transition:all 0.2s;
+            display:inline-flex; align-items:center; gap:6px;
+        }
+        .btn-outline {
+            background:transparent; border:1px solid var(--border);
+            color:var(--text-mute); text-decoration:none;
+        }
+        .btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+        .btn-primary {
+            background:linear-gradient(135deg,#6c5ce7,#a29bfe);
+            border:none; color:#fff;
+        }
+        .btn-primary:hover { opacity:0.9; transform:translateY(-1px); }
+        .btn-danger {
+            background:linear-gradient(135deg,#e17055,#d63031);
+            border:none; color:#fff;
+        }
+        .btn-danger:hover { opacity:0.9; }
+
+        /* ─── TERMINAL EMBED ─── */
+        .term-embed {
+            background:#0d0d1a; border:1px solid var(--border);
+            border-radius:14px; overflow:hidden;
+        }
+        .term-embed .term-header {
+            display:flex; align-items:center; gap:12px;
+            padding:10px 16px; background:rgba(0,0,0,0.4);
+            border-bottom:1px solid var(--border);
+        }
+        .term-embed .term-dots { display:flex; gap:6px; }
+        .term-embed .dot {
+            width:10px; height:10px; border-radius:50%;
+        }
+        .term-embed .dot:nth-child(1) { background:#ff6b6b; }
+        .term-embed .dot:nth-child(2) { background:#feca57; }
+        .term-embed .dot:nth-child(3) { background:#00cec9; }
+        .term-embed .term-title {
+            font-size:0.8rem; color:var(--text-mute); font-weight:500;
+        }
+        .term-embed .term-body {
+            height:300px; overflow-y:auto;
+            padding:14px 18px; font-family:'JetBrains Mono',monospace;
+            font-size:0.8rem; line-height:1.6; background:#08081a;
+        }
+        .term-embed .term-input-line {
+            display:flex; align-items:center; gap:8px;
+            padding:10px 16px; border-top:1px solid var(--border);
+            background:rgba(0,0,0,0.2);
+        }
+        .term-embed .term-prompt {
+            color:var(--accent2); font-family:'JetBrains Mono',monospace;
+            font-size:0.85rem; font-weight:600; flex-shrink:0;
+        }
+        .term-embed .term-input {
+            width:100%; background:transparent; border:none;
+            color:var(--text-main); font-family:'JetBrains Mono',monospace;
+            font-size:0.85rem; outline:none;
+        }
+        .term-embed .term-input::placeholder { color:var(--text-mute); }
+
+        /* ─── TOAST ─── */
+        .toast-container {
+            position:fixed; bottom:24px; right:24px; z-index:9999;
+            display:flex; flex-direction:column; gap:8px;
+        }
+        .toast {
+            padding:12px 20px; border-radius:12px; font-size:0.85rem;
+            font-weight:500; animation:toastIn 0.3s ease;
+            backdrop-filter:blur(12px); border:1px solid var(--border);
+            min-width:200px; max-width:360px;
+        }
+        .toast.success { background:rgba(0,206,201,0.15); border-color:rgba(0,206,201,0.3); color:#00cec9; }
+        .toast.error { background:rgba(225,112,85,0.15); border-color:rgba(225,112,85,0.3); color:#e17055; }
+        .toast.info { background:rgba(108,92,231,0.15); border-color:rgba(108,92,231,0.3); color:#a29bfe; }
+        .toast-out { animation:toastOut 0.3s ease forwards; }
+        @keyframes toastIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+        @keyframes toastOut { from { transform:translateX(0); opacity:1; } to { transform:translateX(100%); opacity:0; } }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 1024px) {
+            .resource-grid { grid-template-columns:repeat(2,1fr); }
+            .profile-grid { grid-template-columns:1fr; }
+        }
+        @media (max-width: 768px) {
+            .user-side { transform:translateX(-100%); }
+            .user-side.open { transform:translateX(0); }
+            .user-top-left .menu-toggle { display:flex; }
+            .user-main { margin-left:0; }
+            .user-content { padding:16px; }
+            .user-top { padding:12px 16px; }
+            .user-top h2 { font-size:0.95rem; }
+            .resource-grid { grid-template-columns:repeat(2,1fr); gap:10px; }
+            .resource-card { padding:16px; }
+            .resource-card .rc-value { font-size:1.2rem; }
+            .resource-card .rc-icon { font-size:1.4rem; }
+            .file-grid { grid-template-columns:1fr; }
+            .table-wrap table { font-size:0.78rem; }
+            .table-wrap th, .table-wrap td { padding:8px 10px; }
+            .upload-zone { padding:24px 16px; }
+            .upload-zone i { font-size:2rem; }
+            .profile-grid { grid-template-columns:1fr; gap:16px; }
+            .profile-card { padding:18px; }
+            .term-embed .term-body { height:220px; font-size:0.75rem; }
+            .page-title h1 { font-size:1.2rem; }
+            .user-badge { font-size:0.75rem; padding:4px 10px; }
+            .user-badge span { display:none; }
+        }
+        @media (max-width: 480px) {
+            .resource-grid { grid-template-columns:1fr 1fr; gap:8px; }
+            .resource-card { padding:14px; }
+            .resource-card .rc-value { font-size:1rem; }
+            .resource-card .rc-detail { font-size:0.68rem; }
+            .user-content { padding:12px; }
+            .section-title { flex-direction:column; align-items:stretch; gap:8px; }
+            .file-card { padding:10px 12px; }
+            .file-card-info .file-name { font-size:0.8rem; }
+            .btn-sm { padding:6px 12px; font-size:0.75rem; }
+        }
+        @media (hover: none) and (pointer: coarse) {
+            .btn-icon { width:36px; height:36px; }
+            .user-side-nav a { padding:12px 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ SIDEBAR OVERLAY ═══ -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <div class="user-side" id="userSidebar">
+        <div class="user-side-brand">
+            <a href="{{ url_for('user_dashboard') }}">
+                <span>⚡ CloudHost<span style="color:var(--accent2)">Pro</span></span>
+            </a>
+        </div>
+        <div class="user-side-user">
+            <strong>{{ username }}</strong>
+        </div>
+        <div class="user-side-nav">
+            <div class="nav-label">Main</div>
+            <a href="{{ url_for('user_dashboard') }}" class="{{ 'active' if dashboard }}">
+                <i class="fas fa-chart-pie"></i> Dashboard
+            </a>
+            <a href="{{ url_for('user_files') }}" class="{{ 'active' if file_manager }}">
+                <i class="fas fa-folder-open"></i> My Files
+            </a>
+            <a href="{{ url_for('user_terminal') }}" class="{{ 'active' if terminal_page }}">
+                <i class="fas fa-terminal"></i> Terminal
+            </a>
+            <div class="nav-label">Account</div>
+            <a href="{{ url_for('user_profile') }}" class="{{ 'active' if profile }}">
+                <i class="fas fa-user-cog"></i> Profile
+            </a>
+        </div>
+        <div class="user-side-foot">
+            <a href="{{ url_for('index') }}"><i class="fas fa-globe"></i> Back to Site</a>
+            <a href="{{ url_for('user_logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </div>
+
+    <!-- ═══ MAIN ═══ -->
+    <div class="user-main" id="userMain">
+        <div class="user-top">
+            <div class="user-top-left">
+                <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2>
+                    {% if dashboard %}📊 Dashboard
+                    {% elif file_manager %}📁 My Files
+                    {% elif terminal_page %}💻 Terminal
+                    {% elif profile %}👤 Profile
+                    {% endif %}
+                </h2>
+            </div>
+            <div class="user-top-right">
+                <div class="user-badge">
+                    <i class="fas fa-user"></i>
+                    <span>{{ username }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="user-content">
+
+            {% if dashboard %}
+            <!-- ════════════════════════════════════════════════════
+                 DASHBOARD
+                 ════════════════════════════════════════════════════ -->
+            <div class="page-title">
+                <h1>👋 Welcome, <span style="color:var(--accent)">{{ username }}</span></h1>
+                <p>Your hosting resources at a glance.</p>
+            </div>
+
+            <div class="resource-grid" id="resourceGrid">
+                <!-- Storage -->
+                <div class="resource-card">
+                    <span class="rc-icon">💾</span>
+                    <span class="rc-value grad-1">{{ stats.storage_used_str }}</span>
+                    <span class="rc-label">of {{ stats.storage_total_str }} used</span>
+                    <div class="rc-bar">
+                        <div class="rc-bar-fill {{ 'green' if stats.storage_pct < 70 else 'yellow' if stats.storage_pct < 90 else 'red' }}" style="width:{{ stats.storage_pct }}%"></div>
+                    </div>
+                    <div class="rc-detail">{{ stats.storage_pct }}% of storage used</div>
+                </div>
+                <!-- RAM -->
+                <div class="resource-card">
+                    <span class="rc-icon">🧠</span>
+                    <span class="rc-value grad-2">{{ stats.ram }} MB</span>
+                    <span class="rc-label">Allocated RAM</span>
+                    <div class="rc-bar"><div class="rc-bar-fill green" style="width:60%"></div></div>
+                    <div class="rc-detail">Dedicated memory for your scripts</div>
+                </div>
+                <!-- CPU -->
+                <div class="resource-card">
+                    <span class="rc-icon">⚡</span>
+                    <span class="rc-value grad-1">{{ stats.cpu }}</span>
+                    <span class="rc-label">CPU Core{{ 's' if stats.cpu > 1 else '' }}</span>
+                    <div class="rc-bar"><div class="rc-bar-fill green" style="width:100%"></div></div>
+                    <div class="rc-detail">Processing power for execution</div>
+                </div>
+                <!-- Files -->
+                <div class="resource-card">
+                    <span class="rc-icon">📁</span>
+                    <span class="rc-value grad-2">{{ stats.total_files }}</span>
+                    <span class="rc-label">of {{ stats.max_files }} files</span>
+                    <div class="rc-bar">
+                        {% set file_pct = (stats.total_files / stats.max_files * 100)|round %}
+                        <div class="rc-bar-fill {{ 'green' if file_pct < 70 else 'yellow' if file_pct < 90 else 'red' }}" style="width:{{ file_pct }}%"></div>
+                    </div>
+                    <div class="rc-detail">{{ stats.files_left }} slots remaining</div>
+                </div>
+            </div>
+
+            <!-- Upload Zone -->
+            <div class="upload-zone" id="userDropzone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h3>Upload to your account</h3>
+                <p>Drag & drop files or click to browse</p>
+                <div class="allowed">
+                    <span class="type-badge">🐍 .py</span>
+                    <span class="type-badge">📦 .zip</span>
+                    <span class="type-badge">📜 .js</span>
+                </div>
+                <input type="file" id="userFileInput" class="file-input" multiple accept=".py,.zip,.js" hidden>
+                <div class="upload-progress" id="userUploadProgress" style="display:none;position:static;background:transparent;padding:20px 0;">
+                    <div class="progress-bar" style="width:100%;">
+                        <div class="progress-fill" id="userProgressFill"></div>
+                    </div>
+                    <p class="progress-text" id="userProgressText">Uploading...</p>
+                </div>
+            </div>
+
+            <!-- Recent Files -->
+            <div class="section-title">
+                <h2><i class="fas fa-history"></i> My Recent Files</h2>
+                {% if files|length > 6 %}
+                <a href="{{ url_for('user_files') }}" class="btn-sm btn-outline">View All</a>
+                {% endif %}
+            </div>
+
+            {% if files %}
+            <div class="file-grid">
+                {% for f in files[:8] %}
+                <div class="file-card" style="animation:fade-up 0.3s ease both; animation-delay:{{ loop.index*0.05 }}s">
+                    <div class="file-card-icon">{{ f.icon }}</div>
+                    <div class="file-card-info">
+                        <div class="file-name" title="{{ f.name }}">{{ f.name }}</div>
+                        <div class="file-meta">
+                            <span>{{ f.size_str }}</span>
+                            <span>{{ f.uploaded }}</span>
+                        </div>
+                    </div>
+                    <div class="file-card-actions">
+                        <button class="btn-icon copy-link" data-url="{{ f.download_url }}" title="Copy Link"><i class="fas fa-link"></i></button>
+                        <button class="btn-icon delete-file" data-file="{{ f.path }}" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h3>No files uploaded yet</h3>
+                <p>Upload your first Python, JS, or ZIP file above.</p>
+            </div>
+            {% endif %}
+
+            {% elif file_manager %}
+            <!-- ════════════════════════════════════════════════════
+                 FILE MANAGER
+                 ════════════════════════════════════════════════════ -->
+            <div class="page-title">
+                <h1>📁 My Files</h1>
+                <p>Manage your uploaded files.</p>
+            </div>
+
+            <div class="table-controls" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+                <button class="btn-sm btn-primary" id="userUploadBtn"><i class="fas fa-cloud-upload-alt"></i> Upload</button>
+                <a href="{{ url_for('user_dashboard') }}" class="btn-sm btn-outline"><i class="fas fa-chart-pie"></i> Dashboard</a>
+            </div>
+
+            <div class="table-wrap">
+                {% if files %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Name</th>
+                            <th>Size</th>
+                            <th>Type</th>
+                            <th>Uploaded</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in files %}
+                        <tr>
+                            <td style="font-size:1.2rem;">{{ f.icon }}</td>
+                            <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ f.name }}">{{ f.name }}</td>
+                            <td>{{ f.size_str }}</td>
+                            <td><span class="type-badge">{{ f.ext }}</span></td>
+                            <td style="color:var(--text-mute);font-size:0.8rem;">{{ f.uploaded }}</td>
+                            <td>
+                                <div style="display:flex;gap:4px;">
+                                    <button class="btn-icon copy-link" data-url="{{ f.download_url }}" title="Copy Link"><i class="fas fa-link"></i></button>
+                                    <button class="btn-icon delete-file" data-file="{{ f.path }}" title="Delete"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h3>No Files</h3>
+                    <p>Upload your first file.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            {% elif terminal_page %}
+            <!-- ════════════════════════════════════════════════════
+                 TERMINAL
+                 ════════════════════════════════════════════════════ -->
+            <div class="page-title">
+                <h1>💻 Terminal</h1>
+                <p>Execute Python & JavaScript code in your account.</p>
+            </div>
+
+            <div class="term-embed" id="userTerminal">
+                <div class="term-header">
+                    <div class="term-dots">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
+                    <span class="term-title">user@cloudhost:~$</span>
+                </div>
+                <div class="term-body" id="termBody">
+                    <div id="termOutput"></div>
+                </div>
+                <div class="term-input-line">
+                    <span class="term-prompt">❯</span>
+                    <input type="text" class="term-input" id="termInput" placeholder="Type Python/JS or command..." autofocus>
+                </div>
+            </div>
+
+            {% elif profile %}
+            <!-- ════════════════════════════════════════════════════
+                 PROFILE
+                 ════════════════════════════════════════════════════ -->
+            <div class="page-title">
+                <h1>👤 Profile</h1>
+                <p>Your account information and settings.</p>
+            </div>
+
+            <div class="profile-grid">
+                <div class="profile-card">
+                    <div class="profile-avatar">{{ username[0]|upper }}</div>
+                    <h3><i class="fas fa-id-card"></i> Account Info</h3>
+                    <div class="profile-field">
+                        <span class="pf-label">Username</span>
+                        <span class="pf-value">{{ username }}</span>
+                    </div>
+                    <div class="profile-field">
+                        <span class="pf-label">Role</span>
+                        <span class="pf-value" style="color:var(--accent)">User</span>
+                    </div>
+                    <div class="profile-field">
+                        <span class="pf-label">Created</span>
+                        <span class="pf-value">{{ user_data.created_at if user_data.created_at else 'N/A' }}</span>
+                    </div>
+                    <div class="profile-field">
+                        <span class="pf-label">Status</span>
+                        <span class="pf-value" style="color:var(--accent2)">✅ Active</span>
+                    </div>
+                </div>
+
+                <div class="profile-card">
+                    <h3><i class="fas fa-server"></i> Resource Quota</h3>
+                    <div class="profile-field">
+                        <span class="pf-label">💾 Storage</span>
+                        <span class="pf-value">{{ user_data.storage_mb }} MB</span>
+                    </div>
+                    <div class="profile-field">
+                        <span class="pf-label">🧠 RAM</span>
+                        <span class="pf-value">{{ user_data.ram_mb }} MB</span>
+                    </div>
+                    <div class="profile-field">
+                        <span class="pf-label">⚡ CPU Cores</span>
+                        <span class="pf-value">{{ user_data.cpu_cores }}</span>
+                    </div>
+                    <div class="profile-field">
+                        <span class="pf-label">📁 Max Files</span>
+                        <span class="pf-value">{{ user_data.max_files }}</span>
+                    </div>
+                </div>
+
+                <div class="profile-card" style="grid-column:1/-1;">
+                    <h3><i class="fas fa-lock"></i> Change Password</h3>
+                    <p style="font-size:0.8rem;color:var(--text-mute);margin-bottom:12px;">Update your account password.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <input type="password" id="newPassword" placeholder="New password" style="flex:1;min-width:150px;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-family:'Inter',sans-serif;font-size:0.85rem;outline:none;">
+                        <button class="btn-sm btn-primary" onclick="changePassword()"><i class="fas fa-save"></i> Update</button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ─── SIDEBAR ───
+        function toggleSidebar() {
+            document.getElementById('userSidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('show');
+        }
+        document.getElementById('sidebarOverlay')?.addEventListener('click', function() {
+            document.getElementById('userSidebar').classList.remove('open');
+            this.classList.remove('show');
+        });
+
+        // ─── TOAST ───
+        function showToast(msg, type='info') {
+            const c = document.getElementById('toastContainer');
+            if(!c) return;
+            const t = document.createElement('div');
+            t.className = 'toast '+type;
+            t.innerHTML = msg;
+            c.appendChild(t);
+            setTimeout(()=>{t.classList.add('toast-out');setTimeout(()=>t.remove(),300)},3500);
+        }
+
+        // ─── COPY LINK ───
+        document.querySelectorAll('.copy-link').forEach(b=>{
+            b.addEventListener('click',function(){
+                if(navigator.clipboard) {
+                    navigator.clipboard.writeText(this.dataset.url).then(()=>showToast('🔗 Link copied!','success'));
+                }
+            });
+        });
+
+        // ─── DELETE FILE ───
+        document.querySelectorAll('.delete-file').forEach(b=>{
+            b.addEventListener('click',async function(){
+                const f = this.dataset.file;
+                if(!confirm(`Delete "${f}"?`)) return;
+                try {
+                    const r = await fetch('/delete/'+encodeURIComponent(f),{method:'POST'});
+                    const d = await r.json();
+                    showToast(d.message, d.success?'success':'error');
+                    if(d.success) {
+                        const row = this.closest('tr') || this.closest('.file-card');
+                        if(row) { row.style.opacity='0'; setTimeout(()=>row.remove(),300); }
+                    }
+                } catch(e) { showToast('Error','error'); }
+            });
+        });
+
+        // ─── UPLOAD ───
+        const dz = document.getElementById('userDropzone');
+        const fi = document.getElementById('userFileInput');
+        const upBtn = document.getElementById('userUploadBtn');
+
+        function uploadFiles(input) {
+            const files = input.files;
+            if(!files.length) return;
+            const prog = document.getElementById('userUploadProgress');
+            const fill = document.getElementById('userProgressFill');
+            const txt = document.getElementById('userProgressText');
+            if(prog) prog.style.display = 'block';
+            if(fill) fill.style.width = '0%';
+            if(txt) txt.textContent = 'Uploading...';
+
+            const form = new FormData();
+            for(const f of files) form.append('files[]', f);
+
+            fetch('/api/user/upload', { method:'POST', body:form })
+                .then(r=>r.json())
+                .then(d=>{
+                    if(prog) prog.style.display = 'none';
+                    showToast(d.message, d.success?'success':'error');
+                    if(d.success) setTimeout(()=>location.reload(),600);
+                })
+                .catch(()=>{
+                    if(prog) prog.style.display = 'none';
+                    showToast('Upload failed','error');
+                });
+        }
+
+        if(dz && fi) {
+            dz.addEventListener('click', ()=>fi.click());
+            fi.addEventListener('change', function(){ uploadFiles(this); });
+            dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag-over'); });
+            dz.addEventListener('dragleave', ()=>dz.classList.remove('drag-over'));
+            dz.addEventListener('drop', e=>{
+                e.preventDefault(); dz.classList.remove('drag-over');
+                if(e.dataTransfer.files.length) {
+                    fi.files = e.dataTransfer.files;
+                    uploadFiles(fi);
+                }
+            });
+        }
+        if(upBtn) {
+            const ufi = document.createElement('input');
+            ufi.type='file'; ufi.multiple=true; ufi.accept='.py,.zip,.js'; ufi.hidden=true;
+            document.body.appendChild(ufi);
+            upBtn.addEventListener('click', ()=>ufi.click());
+            ufi.addEventListener('change', function(){ uploadFiles(this); });
+        }
+
+        // ─── TERMINAL ───
+        const termInput = document.getElementById('termInput');
+        const termOutput = document.getElementById('termOutput');
+
+        if(termInput && termOutput) {
+            function addTermLine(html, cls='') {
+                const d = document.createElement('div');
+                d.className = 'term-line' + (cls ? ' '+cls : '');
+                d.innerHTML = html;
+                termOutput.appendChild(d);
+                termOutput.parentElement.scrollTop = termOutput.parentElement.scrollHeight;
+            }
+
+            addTermLine('CloudHost Pro Terminal • Python & JS');
+            addTermLine('Type <code style="color:var(--accent2)">:help</code> for commands, <code style="color:var(--accent2)">:clear</code> to clear.');
+            addTermLine('');
+
+            termInput.addEventListener('keydown', async function(e) {
+                if(e.key === 'Enter') {
+                    const cmd = this.value.trim();
+                    if(!cmd) return;
+                    this.value = '';
+                    addTermLine('<span style="color:var(--accent2)">❯</span> ' + cmd.replace(/</g,'&lt;'));
+
+                    if(cmd === ':clear' || cmd === 'clear') {
+                        termOutput.innerHTML = '';
+                        addTermLine('CloudHost Pro Terminal • Python & JS');
+                        addTermLine('Type <code style="color:var(--accent2)">:help</code> for commands, <code style="color:var(--accent2)">:clear</code> to clear.');
+                        addTermLine('');
+                        return;
+                    }
+                    if(cmd === ':help') {
+                        addTermLine('<span style="color:var(--accent)">Commands:</span> :clear, :help');
+                        addTermLine('Or type Python/JS code to execute.');
+                        addTermLine('Prefix with <code style="color:#c3e88d">py&gt;</code> or <code style="color:#c3e88d">js&gt;</code> for specific lang.');
+                        return;
+                    }
+
+                    try {
+                        const r = await fetch('/api/terminal/execute', {
+                            method:'POST',
+                            headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({code: cmd, username: '{{ username }}'})
+                        });
+                        const d = await r.json();
+                        if(d.success && d.output) {
+                            addTermLine('<span style="color:var(--text-mute)">' + d.output.replace(/\n/g,'<br>') + '</span>');
+                        } else if(d.error) {
+                            addTermLine('<span style="color:#e17055">✗ ' + d.error.replace(/\n/g,'<br>') + '</span>');
+                        }
+                    } catch(e) {
+                        addTermLine('<span style="color:#e17055">✗ Error executing code</span>');
+                    }
+                }
+            });
+        }
+
+        // ─── CHANGE PASSWORD ───
+        async function changePassword() {
+            const inp = document.getElementById('newPassword');
+            const pw = inp?.value.trim();
+            if(!pw || pw.length < 4) { showToast('Password must be at least 4 characters','error'); return; }
+            try {
+                const r = await fetch('/admin/api/users/{{ username }}', {
+                    method:'PUT',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({password: pw})
+                });
+                const d = await r.json();
+                showToast(d.message, d.success?'success':'error');
+                if(d.success) inp.value = '';
+            } catch(e) { showToast('Error updating password','error'); }
+        }
+    </script>
+
+</body>
+</html>

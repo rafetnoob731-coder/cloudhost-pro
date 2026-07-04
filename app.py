@@ -926,10 +926,12 @@ def user_dashboard():
     cpu_total = user.get('cpu_cores', DEFAULT_QUOTA['cpu_cores'])
     max_files = user.get('max_files', DEFAULT_QUOTA['max_files'])
 
-    return render_template('user_dashboard.html',
+    return render_template('user_panel.html',
+                         dashboard=True,
                          user=user,
                          username=username,
                          files=files[:12],
+                         user_data=user,
                          stats={
                              'total_files': len(files),
                              'storage_used': storage_used,
@@ -954,7 +956,36 @@ def user_files():
         return redirect(url_for('user_logout'))
 
     files = get_user_files(username)
-    return render_template('user_dashboard.html', file_manager=True, user=user, username=username, files=files)
+    return render_template('user_panel.html', file_manager=True, user=user, username=username, files=files, user_data=user)
+
+
+@app.route('/filemanage')
+@user_required
+def user_filemanage():
+    """Alias for user file manager."""
+    return redirect(url_for('user_files'))
+
+
+@app.route('/profile')
+@user_required
+def user_profile():
+    """User profile page."""
+    username = session['user_username']
+    user = get_user(username)
+    if not user:
+        return redirect(url_for('user_logout'))
+    return render_template('user_panel.html', profile=True, user=user, username=username, user_data=user)
+
+
+@app.route('/user/terminal')
+@user_required
+def user_terminal():
+    """User terminal page."""
+    username = session['user_username']
+    user = get_user(username)
+    if not user:
+        return redirect(url_for('user_logout'))
+    return render_template('user_panel.html', terminal_page=True, user=user, username=username, user_data=user)
 
 
 @app.route('/api/user/stats')
