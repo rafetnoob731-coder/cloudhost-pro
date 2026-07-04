@@ -1097,6 +1097,77 @@ def user_terminal():
     return render_template('user_panel.html', terminal_page=True, user=user, username=username, user_data=user)
 
 
+@app.route('/editor')
+@user_required
+def user_editor():
+    """Code editor page."""
+    username = session['user_username']
+    user = get_user(username)
+    if not user:
+        return redirect(url_for('user_logout'))
+    
+    filepath = request.args.get('file', '')
+    if not filepath:
+        return redirect(url_for('user_files'))
+    
+    # Security: ensure file belongs to user
+    full_path = Path(app.config['UPLOAD_FOLDER']) / filepath
+    try:
+        full_path.resolve().relative_to((Path(app.config['UPLOAD_FOLDER']) / username).resolve())
+    except ValueError:
+        return redirect(url_for('user_files'))
+    
+    if not full_path.exists() or not full_path.is_file():
+        return redirect(url_for('user_files'))
+    
+    ext = full_path.suffix.lower()
+    if ext not in app.config['ALLOWED_EXTENSIONS']:
+        return redirect(url_for('user_files'))
+    
+    try:
+        content = full_path.read_text(encoding='utf-8', errors='replace')
+    except Exception:
+        content = '// Error reading file'
+    
+    lang = 'python' if ext == '.py' else 'javascript'
+    
+    return render_template('editor.html',
+                         username=username,
+                         filepath=filepath,
+                         filename=full_path.name,
+                         content=content,
+                         language=lang,
+                         ext=ext)
+
+
+@app.route('/api/editor/save', methods=['POST'])
+@user_required
+def user_editor_save():
+    """Save file content from editor."""
+    username = session['user_username']
+    data = request.get_json()
+    filepath = data.get('file', '')
+    content = data.get('content', '')
+    
+    if not filepath:
+        return jsonify({'success': False, 'message': 'No file specified.'}), 400
+    
+    full_path = Path(app.config['UPLOAD_FOLDER']) / filepath
+    try:
+        full_path.resolve().relative_to((Path(app.config['UPLOAD_FOLDER']) / username).resolve())
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Access denied.'}), 403
+    
+    if not full_path.exists():
+        return jsonify({'success': False, 'message': 'File not found.'}), 404
+    
+    try:
+        full_path.write_text(content, encoding='utf-8')
+        return jsonify({'success': True, 'message': '✅ File saved!'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'❌ Save failed: {str(e)}'}), 500
+
+
 @app.route('/api/user/stats')
 @user_required
 def user_stats_api():

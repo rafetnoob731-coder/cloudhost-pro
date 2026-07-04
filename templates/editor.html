@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Editor — {{ filename }} • CloudHost Pro</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/dracula.min.css">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; background:#08081a; color:#e0e0ff; min-height:100vh; display:flex; }
+        :root { --side-bg:#0d0d24; --border:rgba(108,92,231,0.15); --accent:#6c5ce7; --accent2:#00cec9; --text-mute:#7a7aaa; }
+
+        /* ─── Sidebar ─── */
+        .side { width:220px; min-height:100vh; background:var(--side-bg); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; left:0; top:0; bottom:0; z-index:100; }
+        .side-brand { display:flex; align-items:center; gap:8px; padding:18px 18px 14px; border-bottom:1px solid var(--border); font-size:1rem; font-weight:800; }
+        .side-brand span { background:linear-gradient(135deg,#6c5ce7,#00cec9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .side-user { padding:12px 18px; border-bottom:1px solid var(--border); font-size:0.78rem; color:var(--text-mute); }
+        .side-user strong { color:#e0e0ff; }
+        .side-nav { flex:1; padding:10px; overflow-y:auto; }
+        .side-nav a { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:8px; font-size:0.82rem; font-weight:500; color:var(--text-mute); text-decoration:none; transition:all 0.2s; margin-bottom:2px; }
+        .side-nav a:hover { background:rgba(108,92,231,0.08); color:#e0e0ff; }
+        .side-nav a.active { background:rgba(108,92,231,0.15); color:var(--accent); border-left:3px solid var(--accent); border-radius:8px 4px 4px 8px; }
+        .side-nav a i { width:16px; text-align:center; font-size:0.9rem; }
+
+        /* ─── Main ─── */
+        .main { flex:1; margin-left:220px; display:flex; flex-direction:column; min-height:100vh; }
+        .topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; background:rgba(13,13,36,0.85); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+        .topbar-left { display:flex; align-items:center; gap:12px; }
+        .topbar-left h2 { font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+        .topbar-left h2 .ext-badge { font-size:0.7rem; padding:2px 10px; border-radius:50px; background:rgba(108,92,231,0.12); color:var(--accent); font-weight:600; }
+        .topbar-right { display:flex; align-items:center; gap:8px; }
+        .file-info { font-size:0.78rem; color:var(--text-mute); }
+
+        .editor-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+        .CodeMirror { height:100% !important; font-size:14px; line-height:1.6; }
+        .CodeMirror pre.CodeMirror-line { padding:0 12px; }
+
+        .statusbar { display:flex; align-items:center; justify-content:space-between; padding:8px 20px; background:rgba(13,13,36,0.8); border-top:1px solid var(--border); font-size:0.75rem; color:var(--text-mute); }
+        .statusbar span { display:flex; align-items:center; gap:6px; }
+        .statusbar .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+
+        /* ─── Buttons ─── */
+        .btn { padding:8px 18px; border-radius:8px; font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:6px; border:none; font-family:'Inter',sans-serif; }
+        .btn-primary { background:linear-gradient(135deg,#6c5ce7,#a29bfe); color:#fff; }
+        .btn-primary:hover { opacity:0.9; transform:translateY(-1px); }
+        .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text-mute); text-decoration:none; }
+        .btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+        .btn-success { background:linear-gradient(135deg,#00b894,#00cec9); color:#fff; }
+        .btn-success:hover { opacity:0.9; }
+        .btn-danger { background:linear-gradient(135deg,#e17055,#d63031); color:#fff; }
+        .btn-danger:hover { opacity:0.9; }
+        .btn-sm { padding:6px 14px; font-size:0.78rem; }
+
+        /* ─── Toast ─── */
+        .toast-container { position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+        .toast { padding:10px 18px; border-radius:10px; font-size:0.82rem; font-weight:500; animation:ti 0.3s ease; backdrop-filter:blur(12px); border:1px solid var(--border); min-width:180px; }
+        .toast.success { background:rgba(0,206,201,0.15); border-color:rgba(0,206,201,0.3); color:#00cec9; }
+        .toast.error { background:rgba(225,112,85,0.15); border-color:rgba(225,112,85,0.3); color:#e17055; }
+        .toast.info { background:rgba(108,92,231,0.15); border-color:rgba(108,92,231,0.3); color:#a29bfe; }
+        .toast-out { animation:to 0.3s ease forwards; }
+        @keyframes ti { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+        @keyframes to { from { transform:translateX(0); opacity:1; } to { transform:translateX(100%); opacity:0; } }
+
+        /* ─── Mobile ─── */
+        @media (max-width:768px) {
+            .side { transform:translateX(-100%); }
+            .side.open { transform:translateX(0); }
+            .main { margin-left:0; }
+            .topbar { padding:10px 14px; flex-wrap:wrap; gap:8px; }
+            .topbar-left h2 { font-size:0.85rem; }
+            .CodeMirror { font-size:12px; }
+            .btn-sm { padding:5px 10px; font-size:0.72rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="side" id="side">
+        <div class="side-brand"><span>⚡ CloudHostPro</span></div>
+        <div class="side-user"><strong>{{ username }}</strong></div>
+        <div class="side-nav">
+            <a href="{{ url_for('user_dashboard') }}"><i class="fas fa-chart-pie"></i> Dashboard</a>
+            <a href="{{ url_for('user_files') }}"><i class="fas fa-folder-open"></i> My Files</a>
+            <a href="{{ url_for('user_terminal') }}"><i class="fas fa-terminal"></i> Terminal</a>
+            <a href="{{ url_for('user_profile') }}"><i class="fas fa-user-cog"></i> Profile</a>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button onclick="toggleSide()" style="background:none;border:none;color:var(--text-mute);font-size:1.1rem;cursor:pointer;display:none;" id="menuBtn"><i class="fas fa-bars"></i></button>
+                <h2><i class="fas fa-code" style="color:var(--accent)"></i> {{ filename }} <span class="ext-badge">{{ ext }}</span></h2>
+            </div>
+            <div class="topbar-right">
+                <span class="file-info" id="fileInfo">Ready</span>
+                <button class="btn btn-sm btn-outline" onclick="window.history.back()"><i class="fas fa-arrow-left"></i> Back</button>
+                <button class="btn btn-sm btn-success" id="saveBtn" onclick="saveFile()"><i class="fas fa-save"></i> Save</button>
+                <button class="btn btn-sm btn-primary" id="runBtn" onclick="runFile()"><i class="fas fa-play"></i> Run</button>
+            </div>
+        </div>
+
+        <div class="editor-wrap">
+            <textarea id="codeEditor">{{ content }}</textarea>
+        </div>
+
+        <div class="statusbar">
+            <span><span class="dot" style="background:var(--accent2)" id="statusDot"></span> <span id="statusText">Connected</span></span>
+            <span><span id="cursorPos">Ln 1, Col 1</span></span>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
+    <script>
+        // ─── Editor ───
+        const mode = '{{ language }}' === 'python' ? 'text/x-python' : 'text/javascript';
+        const editor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+            mode: mode,
+            theme: 'dracula',
+            lineNumbers: true,
+            indentUnit: 4,
+            tabSize: 4,
+            indentWithTabs: false,
+            lineWrapping: true,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            extraKeys: {
+                'Ctrl-S': () => saveFile(),
+                'Cmd-S': () => saveFile(),
+                'Ctrl-Enter': () => runFile(),
+                'Cmd-Enter': () => runFile(),
+            }
+        });
+
+        editor.on('cursorActivity', () => {
+            const pos = editor.getCursor();
+            document.getElementById('cursorPos').textContent = `Ln ${pos.line+1}, Col ${pos.ch+1}`;
+        });
+
+        // ─── Sidebar toggle ───
+        function toggleSide() {
+            document.getElementById('side').classList.toggle('open');
+        }
+        // Show menu button on mobile
+        if(window.innerWidth <= 768) document.getElementById('menuBtn').style.display = 'block';
+
+        // ─── Toast ───
+        function showToast(msg, type='info') {
+            const c = document.getElementById('toastContainer');
+            if(!c) return;
+            const t = document.createElement('div');
+            t.className = 'toast '+type;
+            t.innerHTML = msg;
+            c.appendChild(t);
+            setTimeout(()=>{t.classList.add('toast-out');setTimeout(()=>t.remove(),300)},3000);
+        }
+
+        // ─── Save ───
+        async function saveFile() {
+            const btn = document.getElementById('saveBtn');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+            document.getElementById('fileInfo').textContent = 'Saving...';
+            document.getElementById('statusText').textContent = 'Saving...';
+            document.getElementById('statusDot').style.background = '#feca57';
+
+            try {
+                const r = await fetch('/api/editor/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        file: '{{ filepath }}',
+                        content: editor.getValue()
+                    })
+                });
+                const d = await r.json();
+                showToast(d.message, d.success ? 'success' : 'error');
+                if(d.success) {
+                    document.getElementById('fileInfo').textContent = 'Saved ' + new Date().toLocaleTimeString();
+                    document.getElementById('statusDot').style.background = '#00cec9';
+                    document.getElementById('statusText').textContent = 'Saved';
+                } else {
+                    document.getElementById('statusDot').style.background = '#e17055';
+                    document.getElementById('statusText').textContent = 'Error';
+                }
+            } catch(e) {
+                showToast('❌ Save failed','error');
+                document.getElementById('statusDot').style.background = '#e17055';
+                document.getElementById('statusText').textContent = 'Error';
+            }
+
+            btn.innerHTML = orig;
+            btn.disabled = false;
+        }
+
+        // ─── Run ───
+        async function runFile() {
+            const btn = document.getElementById('runBtn');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+            btn.disabled = true;
+
+            try {
+                const lang = '{{ language }}';
+                const r = await fetch('/api/terminal/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({code: editor.getValue(), language: lang})
+                });
+                const d = await r.json();
+                const out = d.output || '(no output)';
+                showToast('✅ Output: ' + out.substring(0, 100), 'success');
+            } catch(e) {
+                showToast('❌ Run failed','error');
+            }
+
+            btn.innerHTML = orig;
+            btn.disabled = false;
+        }
+
+        // ─── Keyboard shortcuts ───
+        document.addEventListener('keydown', (e) => {
+            if((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveFile();
+            }
+            if((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                runFile();
+            }
+        });
+    </script>
+
+</body>
+</html>

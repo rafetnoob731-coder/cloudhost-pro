@@ -417,6 +417,10 @@
             <a href="{{ url_for('user_terminal') }}" class="{{ 'active' if terminal_page }}">
                 <i class="fas fa-terminal"></i> Terminal
             </a>
+            <div class="nav-label">Tools</div>
+            <a href="/editor" class="{{ 'active' if False }}">
+                <i class="fas fa-code"></i> Editor
+            </a>
             <div class="nav-label">Account</div>
             <a href="{{ url_for('user_profile') }}" class="{{ 'active' if profile }}">
                 <i class="fas fa-user-cog"></i> Profile
@@ -542,6 +546,7 @@
                         </div>
                     </div>
                     <div class="file-card-actions">
+                        <button class="btn-icon" onclick="window.location.href='/editor?file={{ f.path }}'" title="Edit"><i class="fas fa-edit"></i></button>
                         {% if f.ext == '.py' or f.ext == '.js' %}
                         <button class="btn-icon run-file" data-file="{{ f.path }}" data-ext="{{ f.ext }}" title="Run"><i class="fas fa-play"></i></button>
                         <button class="btn-icon logs-file" data-file="{{ f.path }}" title="Logs"><i class="fas fa-terminal"></i></button>
@@ -597,6 +602,7 @@
                             <td style="color:var(--text-mute);font-size:0.8rem;">{{ f.uploaded }}</td>
                             <td>
                                 <div style="display:flex;gap:4px;">
+                                    <button class="btn-icon" onclick="window.location.href='/editor?file={{ f.path }}'" title="Edit"><i class="fas fa-edit"></i></button>
                                     {% if f.ext == '.py' or f.ext == '.js' %}
                                     <button class="btn-icon run-file" data-file="{{ f.path }}" data-ext="{{ f.ext }}" title="Run"><i class="fas fa-play"></i></button>
                                     <button class="btn-icon logs-file" data-file="{{ f.path }}" title="Logs"><i class="fas fa-terminal"></i></button>
