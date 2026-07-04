@@ -23,7 +23,7 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'.py', '.zip', '.js'}
 app.config['MAX_FILE_AGE'] = timedelta(days=30)
-app.config['TERMINAL_TIMEOUT'] = 15  # seconds
+app.config['TERMINAL_TIMEOUT'] = 30  # seconds
 
 # ─── Admin Configuration ─────────────────────────────────────────
 app.config['ADMIN_USERNAME'] = 'admin'
@@ -553,7 +553,7 @@ def terminal_execute():
                 ['sh', '-c', cmd],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=app.config['TERMINAL_TIMEOUT'],
                 cwd=app.config['UPLOAD_FOLDER']
             )
             output = ''
@@ -566,7 +566,7 @@ def terminal_execute():
                 output = f'Exit code: {result.returncode}'
             return jsonify({'output': output.strip() or '(no output)', 'language': 'shell'})
         except subprocess.TimeoutExpired:
-            return jsonify({'output': '⏱ Command timed out (10s limit).', 'language': 'shell'})
+            return jsonify({'output': '⏱ Command timed out (30s limit).', 'language': 'shell'})
         except FileNotFoundError:
             return jsonify({'output': f'❌ Command not found: {cmd.split()[0]}', 'language': 'shell'})
         except Exception as e:
