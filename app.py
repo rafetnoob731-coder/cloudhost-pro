@@ -169,7 +169,10 @@ def clean_old_files():
 
 
 def safe_execute(code, language='python'):
-    """Execute Python or JS code safely with timeout. Returns output."""
+    """Execute Python or JS code safely with timeout. Returns output.
+    
+    Auto-installs missing Python modules via pip.
+    """
     if language == 'python':
         cmd = ['python3', '-c', code]
     elif language == 'javascript':
@@ -177,17 +180,60 @@ def safe_execute(code, language='python'):
     else:
         return 'Error: Unsupported language. Use python or javascript.'
 
-    try:
-        result = subprocess.run(
+    def run():
+        return subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=app.config['TERMINAL_TIMEOUT'],
             cwd=tempfile.mkdtemp(),
         )
+
+    try:
+        result = run()
+        
+        # Auto-install missing Python modules
+        if language == 'python' and result.returncode != 0 and 'ModuleNotFoundError' in result.stderr:
+            import re
+            # Extract module name from: ModuleNotFoundError: No module named 'xxx'
+            match = re.search(r"No module named ['\"]([^'\"]+)['\"]", result.stderr)
+            if match:
+                module = match.group(1)
+                # Safety: block dangerous modules
+                blocked = ['os', 'subprocess', 'sys', 'builtins', 'ctypes', 'code', 'codeop']
+                if module in blocked:
+                    return f'❌ Module "{module}" is blocked for security reasons.'
+                
+                # Install the module
+                install_msg = f'📦 Installing "{module}" via pip...'
+                pip_result = subprocess.run(
+                    ['pip3', 'install', module, '--quiet', '--no-cache-dir'],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                if pip_result.returncode == 0:
+                    # Retry execution
+                    result = run()
+                    output = result.stdout
+                    if result.stderr:
+                        if output: output += '\n'
+                        output += result.stderr
+                    if result.returncode == 0:
+                        return f'{install_msg} ✅\n{output.strip() or "(no output)"}'
+                    else:
+                        return f'{install_msg} ⚠️ Installed but code failed:\n{output.strip() or result.stderr.strip()}'
+                else:
+                    stderr = pip_result.stderr.strip()
+                    if 'Could not find a version' in stderr or 'No matching distribution' in stderr:
+                        return f'{install_msg} ❌\n❌ Could not find "{module}" on PyPI.'
+                    return f'{install_msg} ❌\n❌ Failed: {stderr[:200]}'
+        
         output = result.stdout
         if result.stderr:
-            output += '\n' + ('─' * 40) + '\nSTDERR:\n' + result.stderr
+            if output: output += '\n'
+            output += '─' * 40 + '\nSTDERR:\n' + result.stderr
         if result.returncode != 0 and not output.strip():
             output = f'Exit code: {result.returncode}\n{result.stderr}'
         return output.strip() or '(no output)'
