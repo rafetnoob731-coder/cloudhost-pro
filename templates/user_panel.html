@@ -847,11 +847,16 @@
                         const r = await fetch('/api/terminal/execute', {
                             method:'POST',
                             headers:{'Content-Type':'application/json'},
-                            body:JSON.stringify({code: cmd, username: '{{ username }}'})
+                            body:JSON.stringify({code: cmd})
                         });
                         const d = await r.json();
-                        if(d.success && d.output) {
-                            addTermLine('<span style="color:var(--text-mute)">' + d.output.replace(/\n/g,'<br>') + '</span>');
+                        if(d.output) {
+                            const html = d.output.replace(/\n/g,'<br>');
+                            if(html.startsWith('Error') || html.startsWith('⛔') || html.startsWith('✗')) {
+                                addTermLine('<span style="color:#e17055">' + html + '</span>');
+                            } else {
+                                addTermLine('<span style="color:var(--text-mute)">' + html + '</span>');
+                            }
                         } else if(d.error) {
                             addTermLine('<span style="color:#e17055">✗ ' + d.error.replace(/\n/g,'<br>') + '</span>');
                         }
