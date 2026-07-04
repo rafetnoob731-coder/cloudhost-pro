@@ -1184,6 +1184,40 @@ def user_upload():
         filepath = user_dir / unique_name
         file.save(str(filepath))
 
+        # ─── Auto-detect & install Python libs ───
+        if suffix == '.py':
+            try:
+                content = filepath.read_text(encoding='utf-8', errors='replace')
+                imports = set()
+                for line in content.split('\n'):
+                    line = line.strip()
+                    # Match: import xxx | from xxx import yyy
+                    if line.startswith('import '):
+                        mod = line.split()[1].split('.')[0].split(',')[0].strip(';')
+                        if mod and mod not in ('os', 'sys', 'subprocess', 'builtins', 'ctypes', 'code', 'codeop', 'math', 'json', 're', 'datetime', 'random', 'string', 'collections', 'itertools', 'functools', 'pathlib', 'io', 'textwrap', 'pprint', 'typing', 'enum', 'abc', 'copy', 'decimal', 'fractions', 'hashlib', 'uuid', 'statistics', 'glob', 'shutil', 'tempfile', 'time', 'threading', 'multiprocessing', 'queue', 'logging', 'argparse', 'configparser', 'csv', 'html', 'http', 'urllib', 'base64', 'binascii', 'struct', 'pickle', 'shelve', 'dbm', 'sqlite3', 'socket', 'ssl', 'email', 'json', 'xml', 'webbrowser', 'turtle', 'tkinter', 'unittest', 'doctest', 'pdb', 'traceback', '__future__'):
+                            imports.add(mod)
+                    elif line.startswith('from '):
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            mod = parts[1].split('.')[0]
+                            if mod and mod not in ('os', 'sys', 'subprocess', 'builtins', 'ctypes', 'code', 'codeop', 'math', 'json', 're', 'datetime', 'random', 'string', 'collections', 'itertools', 'functools', 'pathlib', 'io', 'textwrap', 'pprint', 'typing', 'enum', 'abc', 'copy', 'decimal', 'fractions', 'hashlib', 'uuid', 'statistics', 'glob', 'shutil', 'tempfile', 'time', 'threading', 'multiprocessing', 'queue', 'logging', 'argparse', 'configparser', 'csv', 'html', 'http', 'urllib', 'base64', 'binascii', 'struct', 'pickle', 'shelve', 'dbm', 'sqlite3', 'socket', 'ssl', 'email', 'json', 'xml', 'webbrowser', 'turtle', 'tkinter', 'unittest', 'doctest', 'pdb', 'traceback', '__future__'):
+                                imports.add(mod)
+                
+                if imports:
+                    for mod in sorted(imports):
+                        # Check if already installed
+                        check = subprocess.run(
+                            ['python3', '-c', f'import {mod}'],
+                            capture_output=True, text=True, timeout=5
+                        )
+                        if check.returncode != 0:
+                            subprocess.run(
+                                ['pip3', 'install', mod, '--quiet', '--no-cache-dir'],
+                                capture_output=True, text=True, timeout=30
+                            )
+            except Exception:
+                pass  # Silently handle any errors during auto-install
+
         rel_path = str(filepath.relative_to(Path(app.config['UPLOAD_FOLDER'])))
         info = get_file_info(rel_path)
         if info:
