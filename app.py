@@ -457,25 +457,86 @@ def create_folder():
 
 @app.route('/api/terminal/execute', methods=['POST'])
 def terminal_execute():
-    """Execute Python/JS code and return output."""
+    """Execute commands like a real terminal (Termux-style).
+    
+    Supports:
+      - Shell commands: ls, pwd, cd, echo, cat, mkdir, rm, python, node, etc.
+      - Python code: auto-detected or prefixed with py>
+      - JavaScript code: auto-detected or prefixed with js>
+    """
     data = request.get_json()
-    code = data.get('code', '')
-    language = data.get('language', 'python')
+    cmd = data.get('code', '').strip()
+    
+    if not cmd:
+        return jsonify({'output': '', 'language': 'shell'})
 
-    if not code.strip():
-        return jsonify({'output': '', 'language': language})
+    # ─── Parse prefix ───
+    language = 'shell'
+    if cmd.startswith('py> '):
+        cmd = cmd[4:].strip()
+        language = 'python'
+    elif cmd.startswith('python> '):
+        cmd = cmd[8:].strip()
+        language = 'python'
+    elif cmd.startswith('js> '):
+        cmd = cmd[4:].strip()
+        language = 'javascript'
+    elif cmd.startswith('node> '):
+        cmd = cmd[6:].strip()
+        language = 'javascript'
 
-    # Security: prevent dangerous patterns
-    dangerous = ['import os', 'import subprocess', 'import sys', '__import__', 'exec(', 'eval(']
+    # ─── Auto-detect: if it looks like Python code, run as python ───
+    python_patterns = ['print(', 'def ', 'import ', 'class ', 'if __name__', 'for ', 'while ', 'try:', 'except:', 'lambda ', 'return ']
+    if language == 'shell' and any(p in cmd for p in python_patterns):
+        language = 'python'
+
+    # ─── Shell built-in commands ───
+    if language == 'shell':
+        # Handle cd separately (can't cd in subprocess)
+        if cmd.startswith('cd '):
+            return jsonify({'output': 'ℹ️ cd is not supported in web terminal. Use absolute paths.', 'language': 'shell'})
+        
+        # Safety: block dangerous commands
+        dangerous_shell = ['rm -rf /', 'mkfs', 'dd if=', ':(){ :|:& };:', '> /dev/sda', 'wget', 'curl -o', 'chmod 777']
+        for pat in dangerous_shell:
+            if pat in cmd:
+                return jsonify({'output': f'⛔ Security: "{pat}" is blocked.', 'language': 'shell'})
+        
+        try:
+            result = subprocess.run(
+                ['sh', '-c', cmd],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                cwd=app.config['UPLOAD_FOLDER']
+            )
+            output = ''
+            if result.stdout:
+                output += result.stdout
+            if result.stderr:
+                if output: output += '\n'
+                output += result.stderr
+            if result.returncode != 0 and not output.strip():
+                output = f'Exit code: {result.returncode}'
+            return jsonify({'output': output.strip() or '(no output)', 'language': 'shell'})
+        except subprocess.TimeoutExpired:
+            return jsonify({'output': '⏱ Command timed out (10s limit).', 'language': 'shell'})
+        except FileNotFoundError:
+            return jsonify({'output': f'❌ Command not found: {cmd.split()[0]}', 'language': 'shell'})
+        except Exception as e:
+            return jsonify({'output': f'❌ Error: {str(e)}', 'language': 'shell'})
+
+    # ─── Python / JavaScript execution ───
     if language == 'python':
+        dangerous = ['import os', 'import subprocess', 'import sys', '__import__', 'exec(', 'eval(']
         for pattern in dangerous:
-            if pattern in code and 'import socket' not in code:  # Allow basic imports
+            if pattern in cmd:
                 return jsonify({
-                    'output': f'⛔ Security restriction: "{pattern}" is not allowed in web terminal.',
-                    'language': language
+                    'output': f'⛔ Security: "{pattern}" blocked.',
+                    'language': 'python'
                 })
-
-    output = safe_execute(code, language)
+    
+    output = safe_execute(cmd, language)
     return jsonify({'output': output, 'language': language})
 
 

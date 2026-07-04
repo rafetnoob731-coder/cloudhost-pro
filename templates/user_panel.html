@@ -542,6 +542,10 @@
                         </div>
                     </div>
                     <div class="file-card-actions">
+                        {% if f.ext == '.py' or f.ext == '.js' %}
+                        <button class="btn-icon run-file" data-file="{{ f.path }}" data-ext="{{ f.ext }}" title="Run"><i class="fas fa-play"></i></button>
+                        <button class="btn-icon logs-file" data-file="{{ f.path }}" title="Logs"><i class="fas fa-terminal"></i></button>
+                        {% endif %}
                         <button class="btn-icon copy-link" data-url="{{ f.download_url }}" title="Copy Link"><i class="fas fa-link"></i></button>
                         <button class="btn-icon delete-file" data-file="{{ f.path }}" title="Delete"><i class="fas fa-trash"></i></button>
                     </div>
@@ -593,6 +597,10 @@
                             <td style="color:var(--text-mute);font-size:0.8rem;">{{ f.uploaded }}</td>
                             <td>
                                 <div style="display:flex;gap:4px;">
+                                    {% if f.ext == '.py' or f.ext == '.js' %}
+                                    <button class="btn-icon run-file" data-file="{{ f.path }}" data-ext="{{ f.ext }}" title="Run"><i class="fas fa-play"></i></button>
+                                    <button class="btn-icon logs-file" data-file="{{ f.path }}" title="Logs"><i class="fas fa-terminal"></i></button>
+                                    {% endif %}
                                     <button class="btn-icon copy-link" data-url="{{ f.download_url }}" title="Copy Link"><i class="fas fa-link"></i></button>
                                     <button class="btn-icon delete-file" data-file="{{ f.path }}" title="Delete"><i class="fas fa-trash"></i></button>
                                 </div>
@@ -705,6 +713,23 @@
     <!-- Toast -->
     <div class="toast-container" id="toastContainer"></div>
 
+    <!-- Logs Modal -->
+    <div class="modal" id="logsModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
+        <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;max-width:700px;width:100%;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;">
+            <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);">
+                <h3 style="font-size:1rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-terminal" style="color:var(--accent)"></i> <span id="logsTitle">Execution Logs</span></h3>
+                <button onclick="closeLogs()" style="background:none;border:none;color:var(--text-mute);font-size:1.2rem;cursor:pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="flex:1;overflow-y:auto;padding:16px 20px;font-family:'JetBrains Mono',monospace;font-size:0.82rem;background:#08081a;white-space:pre-wrap;word-break:break-all;" id="logsOutput">
+                <span style="color:var(--text-mute)">Select a file to view its execution output.</span>
+            </div>
+            <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;">
+                <button onclick="closeLogs()" class="btn-sm btn-outline">Close</button>
+                <button onclick="clearLogs()" class="btn-sm btn-outline" style="border-color:#e17055;color:#e17055;">Clear</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ─── SIDEBAR ───
         function toggleSidebar() {
@@ -734,6 +759,69 @@
                     navigator.clipboard.writeText(this.dataset.url).then(()=>showToast('🔗 Link copied!','success'));
                 }
             });
+        });
+
+        // ─── RUN FILE ───
+        document.querySelectorAll('.run-file').forEach(b=>{
+            b.addEventListener('click', async function(){
+                const file = this.dataset.file;
+                const ext = this.dataset.ext;
+                const lang = ext === '.js' ? 'javascript' : 'python';
+                const btn = this;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                try {
+                    const r = await fetch('/api/terminal/run-file', {
+                        method:'POST',
+                        headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify({filename: file, language: lang})
+                    });
+                    const d = await r.json();
+                    const out = d.output || 'No output';
+                    if(out.startsWith('Error') || out.startsWith('⛔')) {
+                        showToast('❌ ' + out.substring(0, 80), 'error');
+                    } else {
+                        showToast('✅ Executed! Output: ' + out.substring(0, 80), 'success');
+                    }
+                    // Save to localStorage logs
+                    const logs = JSON.parse(localStorage.getItem('file_logs') || '{}');
+                    logs[file] = (logs[file] || '') + '\n--- Run at ' + new Date().toLocaleTimeString() + ' ---\n' + out;
+                    localStorage.setItem('file_logs', JSON.stringify(logs));
+                } catch(e) {
+                    showToast('❌ Run failed','error');
+                }
+                btn.innerHTML = '<i class="fas fa-play"></i>';
+            });
+        });
+
+        // ─── LOGS ───
+        function openLogs(file) {
+            const modal = document.getElementById('logsModal');
+            const output = document.getElementById('logsOutput');
+            const title = document.getElementById('logsTitle');
+            title.textContent = '📋 Logs: ' + file.split('/').pop();
+            const logs = JSON.parse(localStorage.getItem('file_logs') || '{}');
+            output.innerHTML = (logs[file] || 'No execution logs yet. Run the file first.').replace(/\n/g,'<br>');
+            modal.style.display = 'flex';
+        }
+        function closeLogs() {
+            document.getElementById('logsModal').style.display = 'none';
+        }
+        function clearLogs() {
+            const file = document.getElementById('logsTitle').textContent.replace('📋 Logs: ', '');
+            const logs = JSON.parse(localStorage.getItem('file_logs') || '{}');
+            delete logs[file];
+            localStorage.setItem('file_logs', JSON.stringify(logs));
+            document.getElementById('logsOutput').innerHTML = 'Logs cleared.';
+            showToast('🗑️ Logs cleared','info');
+        }
+        document.querySelectorAll('.logs-file').forEach(b=>{
+            b.addEventListener('click', function(){
+                openLogs(this.dataset.file);
+            });
+        });
+        // Close on overlay click
+        document.getElementById('logsModal')?.addEventListener('click', function(e) {
+            if(e.target === this) closeLogs();
         });
 
         // ─── DELETE FILE ───
@@ -805,11 +893,13 @@
             ufi.addEventListener('change', function(){ uploadFiles(this); });
         }
 
-        // ─── TERMINAL ───
+        // ─── TERMINAL (Termux-style) ───
         const termInput = document.getElementById('termInput');
         const termOutput = document.getElementById('termOutput');
 
         if(termInput && termOutput) {
+            const user = '{{ username }}';
+            
             function addTermLine(html, cls='') {
                 const d = document.createElement('div');
                 d.className = 'term-line' + (cls ? ' '+cls : '');
@@ -818,8 +908,14 @@
                 termOutput.parentElement.scrollTop = termOutput.parentElement.scrollHeight;
             }
 
-            addTermLine('CloudHost Pro Terminal • Python & JS');
-            addTermLine('Type <code style="color:var(--accent2)">:help</code> for commands, <code style="color:var(--accent2)">:clear</code> to clear.');
+            // Welcome
+            addTermLine('<span style="color:var(--accent2);font-weight:700;">╔═══════════════════════════════════════╗</span>');
+            addTermLine('<span style="color:var(--accent2);font-weight:700;">║</span>   <span style="color:var(--accent);font-weight:700;">CloudHost Pro Terminal</span>      <span style="color:var(--accent2);font-weight:700;">║</span>');
+            addTermLine('<span style="color:var(--accent2);font-weight:700;">║</span>   Type commands like Termux          <span style="color:var(--accent2);font-weight:700;">║</span>');
+            addTermLine('<span style="color:var(--accent2);font-weight:700;">╚═══════════════════════════════════════╝</span>');
+            addTermLine('');
+            addTermLine('<span style="color:var(--text-mute)">📌 <code style="color:#c3e88d">ls</code> <code style="color:#c3e88d">pwd</code> <code style="color:#c3e88d">echo</code> <code style="color:#c3e88d">cat</code> <code style="color:#c3e88d">python3</code> <code style="color:#c3e88d">node</code> — or just type Python/JS code</span>');
+            addTermLine('<span style="color:var(--text-mute)">💡 Prefix: <code style="color:#c3e88d">py&gt;</code> for Python, <code style="color:#c3e88d">js&gt;</code> for JavaScript</span>');
             addTermLine('');
 
             termInput.addEventListener('keydown', async function(e) {
@@ -827,22 +923,32 @@
                     const cmd = this.value.trim();
                     if(!cmd) return;
                     this.value = '';
-                    addTermLine('<span style="color:var(--accent2)">❯</span> ' + cmd.replace(/</g,'&lt;'));
+                    
+                    // Show prompt + command
+                    addTermLine('<span style="color:#00cec9">' + user + '@cloudhost</span>:<span style="color:#6c5ce7">~</span><span style="color:#fff">$</span> ' + cmd.replace(/</g,'&lt;'));
 
-                    if(cmd === ':clear' || cmd === 'clear') {
+                    // Handle special commands
+                    if(cmd === ':clear' || cmd === 'clear' || cmd === 'clr') {
                         termOutput.innerHTML = '';
-                        addTermLine('CloudHost Pro Terminal • Python & JS');
-                        addTermLine('Type <code style="color:var(--accent2)">:help</code> for commands, <code style="color:var(--accent2)">:clear</code> to clear.');
-                        addTermLine('');
+                        addTermLine('<span style="color:#00cec9">' + user + '@cloudhost</span>:<span style="color:#6c5ce7">~</span><span style="color:#fff">$</span> <span style="color:var(--text-mute)">[cleared]</span>');
                         return;
                     }
-                    if(cmd === ':help') {
-                        addTermLine('<span style="color:var(--accent)">Commands:</span> :clear, :help');
-                        addTermLine('Or type Python/JS code to execute.');
-                        addTermLine('Prefix with <code style="color:#c3e88d">py&gt;</code> or <code style="color:#c3e88d">js&gt;</code> for specific lang.');
+                    if(cmd === ':help' || cmd === 'help') {
+                        addTermLine('<span style="color:var(--accent)">╔══ Commands ══╗</span>');
+                        addTermLine('<span style="color:#c3e88d">  ls</span>        <span style="color:var(--text-mute)">List files</span>');
+                        addTermLine('<span style="color:#c3e88d">  pwd</span>       <span style="color:var(--text-mute)">Print working directory</span>');
+                        addTermLine('<span style="color:#c3e88d">  echo</span>      <span style="color:var(--text-mute)">Print text</span>');
+                        addTermLine('<span style="color:#c3e88d">  cat</span>       <span style="color:var(--text-mute)">View file</span>');
+                        addTermLine('<span style="color:#c3e88d">  python3</span>   <span style="color:var(--text-mute)">Run Python code</span>');
+                        addTermLine('<span style="color:#c3e88d">  node</span>      <span style="color:var(--text-mute)">Run JavaScript</span>');
+                        addTermLine('<span style="color:#c3e88d">  py> &lt;code&gt;</span> <span style="color:var(--text-mute)">Force Python</span>');
+                        addTermLine('<span style="color:#c3e88d">  js> &lt;code&gt;</span> <span style="color:var(--text-mute)">Force JavaScript</span>');
+                        addTermLine('<span style="color:#c3e88d">  clear</span>     <span style="color:var(--text-mute)">Clear screen</span>');
+                        addTermLine('<span style="color:var(--accent)">╚══════════════╝</span>');
                         return;
                     }
 
+                    // Execute command
                     try {
                         const r = await fetch('/api/terminal/execute', {
                             method:'POST',
@@ -851,17 +957,19 @@
                         });
                         const d = await r.json();
                         if(d.output) {
-                            const html = d.output.replace(/\n/g,'<br>');
-                            if(html.startsWith('Error') || html.startsWith('⛔') || html.startsWith('✗')) {
-                                addTermLine('<span style="color:#e17055">' + html + '</span>');
-                            } else {
-                                addTermLine('<span style="color:var(--text-mute)">' + html + '</span>');
+                            const lines = d.output.split('\n');
+                            for(const line of lines) {
+                                const trimmed = line.trim();
+                                if(!trimmed) continue;
+                                if(trimmed.startsWith('Error') || trimmed.startsWith('⛔') || trimmed.startsWith('✗') || trimmed.startsWith('❌')) {
+                                    addTermLine('<span style="color:#e17055">' + line.replace(/</g,'&lt;') + '</span>');
+                                } else {
+                                    addTermLine('<span style="color:var(--text-secondary)">' + line.replace(/</g,'&lt;') + '</span>');
+                                }
                             }
-                        } else if(d.error) {
-                            addTermLine('<span style="color:#e17055">✗ ' + d.error.replace(/\n/g,'<br>') + '</span>');
                         }
                     } catch(e) {
-                        addTermLine('<span style="color:#e17055">✗ Error executing code</span>');
+                        addTermLine('<span style="color:#e17055">✗ Connection error</span>');
                     }
                 }
             });

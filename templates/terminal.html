@@ -170,12 +170,17 @@ async function executeCode(code) {
         const res = await fetch('/api/terminal/execute', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, language: TERM.language }),
+            body: JSON.stringify({ code }),
         });
         const data = await res.json();
-        addOutputLine(data.output || '(no output)', 'output');
+        const out = data.output || '(no output)';
+        if (out.startsWith('Error') || out.startsWith('⛔') || out.startsWith('❌')) {
+            addOutputLine(out, 'error');
+        } else {
+            addOutputLine(out, 'output');
+        }
     } catch (e) {
-        addOutputLine('Error: Connection failed.', 'error');
+        addOutputLine('Connection failed.', 'error');
     } finally {
         termRunBtn.disabled = false;
         termRunBtn.innerHTML = '<i class="fas fa-play"></i> Run';
@@ -193,24 +198,18 @@ function addOutputLine(text, type = 'output') {
         if (type === 'input') {
             const prompt = document.createElement('span');
             prompt.className = 'term-prompt';
-            prompt.textContent = TERM.language === 'python' ? '>>> ' : '> ';
+            prompt.textContent = '❯ ';
             div.appendChild(prompt);
 
             const codeSpan = document.createElement('span');
             codeSpan.className = 'term-code';
             codeSpan.textContent = line;
             div.appendChild(codeSpan);
-        } else if (type === 'output') {
-            const prompt = document.createElement('span');
-            prompt.className = 'term-prompt';
-            prompt.textContent = '◀ ';
-            div.appendChild(prompt);
-
-            const textSpan = document.createElement('span');
-            textSpan.className = 'term-output-text';
-            textSpan.textContent = line;
-            div.appendChild(textSpan);
+        } else if (type === 'error') {
+            div.style.color = '#e17055';
+            div.textContent = '✗ ' + line;
         } else {
+            div.style.color = 'var(--text-secondary)';
             div.textContent = line;
         }
 
