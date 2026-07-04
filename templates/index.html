@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}CloudHost Pro — Fast File Hosting for .PY .ZIP .JS{% endblock %}
+
+{% block content %}
+
+<!-- ═══ HERO ═══ -->
+<section class="hero" style="min-height:100vh;position:relative;">
+    <div class="hero-bg">
+        <div class="hero-particle" style="--x:5%;--y:15%;--s:5px;--d:0s"></div>
+        <div class="hero-particle" style="--x:85%;--y:25%;--s:7px;--d:1.2s"></div>
+        <div class="hero-particle" style="--x:20%;--y:75%;--s:4px;--d:2s"></div>
+        <div class="hero-particle" style="--x:75%;--y:85%;--s:6px;--d:0.6s"></div>
+        <div class="hero-particle" style="--x:50%;--y:10%;--s:4px;--d:1.8s"></div>
+        <div class="hero-particle" style="--x:92%;--y:55%;--s:3px;--d:2.5s"></div>
+        <div class="hero-particle" style="--x:12%;--y:45%;--s:5px;--d:0.9s"></div>
+        <div class="hero-particle" style="--x:65%;--y:92%;--s:4px;--d:1.5s"></div>
+    </div>
+    <div class="container hero-container" style="grid-template-columns:1.1fr 0.9fr;gap:50px;padding:60px 24px;align-items:center;">
+        
+        <!-- Left Content -->
+        <div class="hero-content animate-fade-up" style="text-align:left;">
+            <div class="hero-badge" style="margin-bottom:20px;">
+                <i class="fas fa-bolt"></i> Now Public — 200+ Members
+            </div>
+            
+            {% if user_logged_in %}
+            <h1 class="hero-title" style="font-size:clamp(2rem,4vw,3.5rem);">
+                Welcome back,<br>
+                <span class="gradient-text">{{ user_username }}</span>
+            </h1>
+            <p class="hero-subtitle" style="font-size:1rem;">
+                You're signed in. Head to your dashboard to upload files and manage your account.
+            </p>
+            <div class="hero-actions" style="justify-content:flex-start;gap:12px;">
+                <a href="{{ url_for('user_dashboard') }}" class="btn btn-primary btn-glow" style="padding:16px 32px;font-size:1rem;border-radius:14px;">
+                    <i class="fas fa-chart-pie"></i> Dashboard
+                </a>
+                <a href="{{ url_for('user_files') }}" class="btn btn-outline" style="padding:16px 28px;font-size:1rem;">
+                    <i class="fas fa-folder-open"></i> My Files
+                </a>
+            </div>
+            {% else %}
+            <h1 class="hero-title" style="font-size:clamp(2rem,4.5vw,3.8rem);line-height:1.15;">
+                Host & Share<br>
+                <span class="gradient-text">Python · JS · ZIP</span>
+            </h1>
+            <p class="hero-subtitle" style="font-size:1.05rem;max-width:500px;">
+                Upload your scripts, share instant links, and manage everything from one dashboard. Built for developers.
+            </p>
+            <div class="hero-actions" style="justify-content:flex-start;gap:12px;margin-bottom:36px;">
+                <a href="{{ url_for('user_login_page') }}" class="btn btn-primary btn-glow" style="padding:18px 40px;font-size:1.1rem;border-radius:16px;">
+                    <i class="fas fa-rocket"></i> Get Started
+                </a>
+                <a href="{{ url_for('user_login_page') }}" class="btn btn-outline" style="padding:16px 32px;font-size:1rem;">
+                    <i class="fas fa-user-circle"></i> Sign In
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Stats -->
+            <div class="hero-stats" style="gap:32px;">
+                <div class="hero-stat">
+                    <span class="hero-stat-number" style="font-size:1.8rem;" data-count="{{ stats.total_files }}">0</span>
+                    <span class="hero-stat-label" style="font-size:0.8rem;">Files Hosted</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number" style="font-size:1.8rem;">
+                        {% if stats.total_size > 1024*1024 %}
+                            {{ (stats.total_size / (1024*1024))|round(1) }}
+                        {% else %}
+                            {{ (stats.total_size / 1024)|round(1) }}
+                        {% endif %}
+                    </span>
+                    <span class="hero-stat-label" style="font-size:0.8rem;">
+                        {% if stats.total_size > 1024*1024 %}MB Stored{% else %}KB Stored{% endif %}
+                    </span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number" style="font-size:1.8rem;">{{ stats.supported_types|length }}</span>
+                    <span class="hero-stat-label" style="font-size:0.8rem;">File Types</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Visual -->
+        <div class="hero-visual animate-fade-in" style="animation-delay:0.3s;display:flex;justify-content:center;align-items:center;">
+            <div class="code-window" style="max-width:400px;width:100%;">
+                <div class="code-header">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                    <span class="code-title">quickstart.py</span>
+                </div>
+                <div class="code-body" style="font-size:0.78rem;line-height:1.9;">
+                    <pre><span class="cmt"># 🚀 3 simple steps</span>
+
+  <span class="fn">1.</span>  <span class="str">Sign in</span>  →  <span class="fn">cloudhost.pro/login</span>
+  <span class="fn">2.</span>  <span class="str">Upload</span>   →  <span class="fn">.py / .zip / .js</span>
+  <span class="fn">3.</span>  <span class="str">Share</span>    →  <span class="fn">instant link 🔗</span>
+
+<span class="cmt"># ⚡ That's all.</span></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div style="position:absolute;bottom:30px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text-muted);font-size:0.75rem;animation:float 2s ease-in-out infinite;opacity:0.5;">
+        <span>Learn more</span>
+        <i class="fas fa-chevron-down"></i>
+    </div>
+</section>
+
+<!-- ═══ FEATURES ═══ -->
+<section style="padding:100px 0;background:var(--bg-secondary);">
+    <div class="container">
+        <div class="section-header animate-fade-up" style="margin-bottom:60px;">
+            <h2 class="section-title" style="font-size:2rem;">
+                Why <span style="background:var(--gradient-1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">CloudHost Pro</span>?
+            </h2>
+            <p class="section-desc">Everything you need to host and share your code in one place.</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:1000px;margin:0 auto;">
+            
+            <div class="info-card animate-fade-up" style="text-align:center;padding:32px 24px;">
+                <div style="font-size:2.5rem;margin-bottom:12px;">⚡</div>
+                <h4 style="font-size:1.05rem;margin-bottom:6px;">Instant Upload</h4>
+                <p style="font-size:0.85rem;">Drag & drop or click. Get a shareable link in seconds.</p>
+            </div>
+
+            <div class="info-card animate-fade-up" style="text-align:center;padding:32px 24px;animation-delay:0.1s;">
+                <div style="font-size:2.5rem;margin-bottom:12px;">🔒</div>
+                <h4 style="font-size:1.05rem;margin-bottom:6px;">Private Storage</h4>
+                <p style="font-size:0.85rem;">Files are stored securely. Auto-cleaned after 30 days.</p>
+            </div>
+
+            <div class="info-card animate-fade-up" style="text-align:center;padding:32px 24px;animation-delay:0.2s;">
+                <div style="font-size:2.5rem;margin-bottom:12px;">📂</div>
+                <h4 style="font-size:1.05rem;margin-bottom:6px;">File Manager</h4>
+                <p style="font-size:0.85rem;">Organize with folders, preview code, manage everything.</p>
+            </div>
+
+            <div class="info-card animate-fade-up" style="text-align:center;padding:32px 24px;animation-delay:0.3s;">
+                <div style="font-size:2.5rem;margin-bottom:12px;">💻</div>
+                <h4 style="font-size:1.05rem;margin-bottom:6px;">Web Terminal</h4>
+                <p style="font-size:0.85rem;">Run Python & JS code directly in your browser.</p>
+            </div>
+
+        </div>
+
+        <div class="section-footer animate-fade-up" style="margin-top:50px;">
+            {% if not user_logged_in %}
+            <a href="{{ url_for('user_login_page') }}" class="btn btn-primary btn-glow" style="padding:16px 44px;font-size:1.05rem;border-radius:14px;">
+                <i class="fas fa-rocket"></i> Get Started — Free
+            </a>
+            {% else %}
+            <a href="{{ url_for('user_dashboard') }}" class="btn btn-primary btn-glow" style="padding:16px 44px;font-size:1.05rem;border-radius:14px;">
+                <i class="fas fa-chart-pie"></i> Go to Dashboard
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- ═══ SUPPORTED TYPES ═══ -->
+<section style="padding:80px 0;">
+    <div class="container">
+        <div class="section-header animate-fade-up">
+            <h2 class="section-title" style="font-size:1.6rem;">
+                <i class="fas fa-code"></i> Supported File Types
+            </h2>
+        </div>
+        <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;">
+            <div class="animate-fade-up" style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:32px 40px;text-align:center;min-width:160px;">
+                <div style="font-size:3rem;margin-bottom:8px;">🐍</div>
+                <h3 style="font-size:1.2rem;font-weight:700;">Python</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;">.py files</p>
+            </div>
+            <div class="animate-fade-up" style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:32px 40px;text-align:center;min-width:160px;animation-delay:0.1s;">
+                <div style="font-size:3rem;margin-bottom:8px;">📜</div>
+                <h3 style="font-size:1.2rem;font-weight:700;">JavaScript</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;">.js files</p>
+            </div>
+            <div class="animate-fade-up" style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:32px 40px;text-align:center;min-width:160px;animation-delay:0.2s;">
+                <div style="font-size:3rem;margin-bottom:8px;">📦</div>
+                <h3 style="font-size:1.2rem;font-weight:700;">Archives</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;">.zip files</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

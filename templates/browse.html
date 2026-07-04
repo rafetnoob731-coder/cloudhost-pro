@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Browse Files — CloudHost Pro{% endblock %}
+
+{% block content %}
+
+<!-- ═══ BROWSE HEADER ═══ -->
+<section class="browse-header section">
+    <div class="container">
+        <div class="section-header animate-fade-up">
+            <h2 class="section-title">
+                <i class="fas fa-folder-open"></i> All Files
+            </h2>
+            <p class="section-desc">Browse and manage all hosted files.</p>
+        </div>
+
+        <div class="browse-tools animate-fade-up">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search files by name..." autocomplete="off">
+            </div>
+            <div class="filter-group">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter=".py">Python</button>
+                <button class="filter-btn" data-filter=".zip">ZIP</button>
+                <button class="filter-btn" data-filter=".js">JavaScript</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ FILES LIST ═══ -->
+<section class="files-section section">
+    <div class="container">
+        {% if files %}
+        <div class="files-grid" id="filesGrid">
+            {% for file in files %}
+            <div class="file-card animate-fade-up" 
+                 style="animation-delay:{{ loop.index * 0.05 }}s" 
+                 data-file="{{ file.name }}"
+                 data-ext="{{ file.ext }}">
+                <div class="file-card-icon" style="--file-color: {{ file.color }}">
+                    <span class="file-emoji">{{ file.icon }}</span>
+                </div>
+                <div class="file-card-info">
+                    <h4 class="file-name" title="{{ file.name }}">{{ file.name }}</h4>
+                    <div class="file-meta">
+                        <span class="file-size"><i class="fas fa-database"></i> {{ file.size_str }}</span>
+                        <span class="file-date"><i class="fas fa-clock"></i> {{ file.uploaded }}</span>
+                    </div>
+                </div>
+                <div class="file-card-actions">
+                    <button class="btn-icon copy-link" data-url="{{ file.download_url }}" title="Copy link">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    {% if file.ext in ('.py', '.js') %}
+                    <button class="btn-icon preview-file" data-file="{{ file.name }}" title="Preview">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    {% endif %}
+                    <a href="{{ url_for('serve_file', filename=file.name) }}" class="btn-icon" title="Download" download="{{ file.name }}">
+                        <i class="fas fa-download"></i>
+                    </a>
+                    <button class="btn-icon delete-file" data-file="{{ file.name }}" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state animate-fade-up">
+            <div class="empty-icon">
+                <i class="fas fa-inbox"></i>
+            </div>
+            <h3>No files here yet</h3>
+            <p>Upload your first file to get started!</p>
+            <a href="{{ url_for('index') }}#upload-section" class="btn btn-primary">
+                <i class="fas fa-cloud-upload-alt"></i> Upload Now
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- ═══ PREVIEW MODAL (reused) ═══ -->
+<div class="modal" id="previewModal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-code"></i> <span id="previewTitle">Code Preview</span></h3>
+            <button class="modal-close" id="previewClose">&times;</button>
+        </div>
+        <div class="modal-body">
+            <pre class="preview-code"><code id="previewCode">Loading...</code></pre>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

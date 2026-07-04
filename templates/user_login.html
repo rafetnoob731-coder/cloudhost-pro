@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Login — CloudHost Pro</title>
+    <meta name="description" content="Login to your hosting account">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .user-login-body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gradient-hero);
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .user-login-body::before {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: var(--accent-1);
+            opacity: 0.05;
+            top: -100px;
+            right: -100px;
+            animation: float-particle 8s ease-in-out infinite;
+        }
+        .user-login-body::after {
+            content: '';
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: var(--accent-2);
+            opacity: 0.05;
+            bottom: -50px;
+            left: -50px;
+            animation: float-particle 10s ease-in-out infinite reverse;
+        }
+        .user-login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 48px 40px 40px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            animation: modal-in 0.4s ease;
+            position: relative;
+            z-index: 1;
+        }
+        .user-login-card .login-icon {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+        }
+        .user-login-card h1 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        .user-login-card .login-sub {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 24px;
+        }
+        .user-login-error {
+            background: rgba(253, 121, 168, 0.1);
+            border: 1px solid rgba(253, 121, 168, 0.2);
+            color: var(--accent-3);
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+        .user-login-card .form-group { padding: 0; margin-bottom: 16px; text-align: left; }
+        .user-login-card .form-input { background: var(--bg-primary); }
+        .user-login-card .btn { width: 100%; justify-content: center; margin-top: 4px; }
+        .user-login-card .login-footer {
+            margin-top: 20px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+        .user-login-card .login-footer a {
+            color: var(--accent-1);
+            text-decoration: none;
+        }
+        .user-login-card .login-footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body class="user-login-body">
+
+    <div class="user-login-card">
+        <div class="login-icon">🔐</div>
+        <h1>Welcome Back</h1>
+        <p class="login-sub">Sign in as <strong>User</strong> or <strong>Admin</strong></p>
+
+        {% if error %}
+        <div class="user-login-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('user_login') }}">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-input" placeholder="Your username" autocomplete="off" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-glow">
+                <i class="fas fa-arrow-right"></i> Sign In
+            </button>
+        </form>
+
+        <div class="login-footer">
+            <a href="{{ url_for('index') }}"><i class="fas fa-arrow-left"></i> Back to Home</a>
+            <p style="margin-top:16px;font-size:0.8rem;color:var(--text-muted);">
+                Don't have an account? Contact the administrator.
+            </p>
+        </div>
+    </div>
+
+</body>
+</html>

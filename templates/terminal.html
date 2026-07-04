@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block title %}Web Terminal — CloudHost Pro{% endblock %}
+
+{% block content %}
+
+<!-- ═══ TERMINAL ═══ -->
+<section class="term-section section">
+    <div class="container">
+        <div class="section-header animate-fade-up">
+            <h2 class="section-title">
+                <i class="fas fa-terminal"></i> Web Terminal
+            </h2>
+            <p class="section-desc">Run Python & JavaScript code directly in your browser.</p>
+        </div>
+
+        <div class="term-layout animate-fade-up">
+            <!-- Terminal Emulator -->
+            <div class="term-main">
+                <div class="term-window">
+                    <div class="term-header">
+                        <div class="term-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <div class="term-tabs">
+                            <button class="term-tab active" data-lang="python">
+                                <i class="fab fa-python"></i> Python
+                            </button>
+                            <button class="term-tab" data-lang="javascript">
+                                <i class="fab fa-js"></i> JavaScript
+                            </button>
+                        </div>
+                        <div class="term-actions">
+                            <button class="btn-icon" id="termClear" title="Clear">
+                                <i class="fas fa-eraser"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="term-body" id="termBody">
+                        <div class="term-line term-welcome">
+                            <span class="term-prompt">⚡</span>
+                            <span>CloudHost Pro Terminal v1.0</span>
+                        </div>
+                        <div class="term-line term-welcome">
+                            <span class="term-prompt">🐍</span>
+                            <span>Type Python or JS code below. Press <kbd>Ctrl+Enter</kbd> to run.</span>
+                        </div>
+                        <div class="term-line term-welcome" style="margin-bottom:12px;">
+                            <span class="term-prompt">📌</span>
+                            <span>Example: <code>print("Hello, World!")</code></span>
+                        </div>
+                        <div id="termOutput"></div>
+                    </div>
+                    <div class="term-input-line">
+                        <span class="term-input-prompt" id="termPrompt">>>> </span>
+                        <div class="term-input-wrapper">
+                            <textarea class="term-input" id="termInput" rows="1" placeholder="Type your code here..." spellcheck="false" autofocus></textarea>
+                        </div>
+                        <button class="btn btn-primary btn-sm" id="termRunBtn">
+                            <i class="fas fa-play"></i> Run
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Run file from URL param -->
+                {% if request.args.get('file') %}
+                <div class="term-file-info animate-fade-up">
+                    <i class="fas fa-file-code"></i>
+                    Running: <strong>{{ request.args.get('file') }}</strong>
+                    <button class="btn btn-primary btn-sm" id="runLoadedFile">
+                        <i class="fas fa-play"></i> Execute File
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Sidebar: Quick snippets -->
+            <aside class="term-sidebar">
+                <div class="term-sidebar-header">
+                    <i class="fas fa-lightbulb"></i> Quick Snippets
+                </div>
+                <div class="term-snippets">
+                    <div class="snippet-group">
+                        <h4>Python</h4>
+                        <button class="snippet-btn" data-code="print('Hello, CloudHost Pro!')" data-lang="python">
+                            <i class="fas fa-copy"></i> Hello World
+                        </button>
+                        <button class="snippet-btn" data-code="import math&#10;print(f'Pi = {math.pi:.4f}')" data-lang="python">
+                            <i class="fas fa-copy"></i> Math PI
+                        </button>
+                        <button class="snippet-btn" data-code="for i in range(1, 11):&#10;    print(f'{i}² = {i*i}')" data-lang="python">
+                            <i class="fas fa-copy"></i> Squares
+                        </button>
+                        <button class="snippet-btn" data-code="def fib(n):&#10;    a, b = 0, 1&#10;    for _ in range(n):&#10;        print(a, end=' ')&#10;        a, b = b, a + b&#10;fib(15)" data-lang="python">
+                            <i class="fas fa-copy"></i> Fibonacci
+                        </button>
+                    </div>
+                    <div class="snippet-group">
+                        <h4>JavaScript</h4>
+                        <button class="snippet-btn" data-code="console.log('Hello, CloudHost Pro!');" data-lang="javascript">
+                            <i class="fas fa-copy"></i> Hello World
+                        </button>
+                        <button class="snippet-btn" data-code="const nums = [1,2,3,4,5];&#10;const squares = nums.map(n => n*n);&#10;console.log('Squares:', squares);" data-lang="javascript">
+                            <i class="fas fa-copy"></i> Map Squares
+                        </button>
+                        <button class="snippet-btn" data-code="function factorial(n) {&#10;    return n <= 1 ? 1 : n * factorial(n-1);&#10;}&#10;console.log('10! =', factorial(10));" data-lang="javascript">
+                            <i class="fas fa-copy"></i> Factorial
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ─── Terminal State ──────────────────────────────────────────────
+const TERM = {
+    language: 'python',
+    history: [],
+    historyIndex: -1,
+    currentInput: '',
+};
+
+const termBody = document.getElementById('termBody');
+const termInput = document.getElementById('termInput');
+const termPrompt = document.getElementById('termPrompt');
+const termOutput = document.getElementById('termOutput');
+const termRunBtn = document.getElementById('termRunBtn');
+
+// ─── Tab Switching ──────────────────────────────────────────────
+document.querySelectorAll('.term-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.term-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        TERM.language = this.dataset.lang;
+        termPrompt.textContent = TERM.language === 'python' ? '>>> ' : '> ';
+        termInput.focus();
+    });
+});
+
+// ─── Auto-resize textarea ───────────────────────────────────────
+termInput.addEventListener('input', () => {
+    termInput.style.height = 'auto';
+    termInput.style.height = Math.min(termInput.scrollHeight, 120) + 'px';
+});
+
+// ─── Execute Code ───────────────────────────────────────────────
+async function executeCode(code) {
+    if (!code.trim()) return;
+
+    // Add to output
+    addOutputLine(code, 'input');
+    termInput.value = '';
+    termInput.style.height = 'auto';
+
+    // Add to history
+    TERM.history.push(code);
+    TERM.historyIndex = TERM.history.length;
+
+    // Loading state
+    termRunBtn.disabled = true;
+    termRunBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        const res = await fetch('/api/terminal/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, language: TERM.language }),
+        });
+        const data = await res.json();
+        addOutputLine(data.output || '(no output)', 'output');
+    } catch (e) {
+        addOutputLine('Error: Connection failed.', 'error');
+    } finally {
+        termRunBtn.disabled = false;
+        termRunBtn.innerHTML = '<i class="fas fa-play"></i> Run';
+        termInput.focus();
+        scrollTerminal();
+    }
+}
+
+function addOutputLine(text, type = 'output') {
+    const lines = text.split('\n');
+    lines.forEach(line => {
+        const div = document.createElement('div');
+        div.className = `term-line term-${type}`;
+
+        if (type === 'input') {
+            const prompt = document.createElement('span');
+            prompt.className = 'term-prompt';
+            prompt.textContent = TERM.language === 'python' ? '>>> ' : '> ';
+            div.appendChild(prompt);
+
+            const codeSpan = document.createElement('span');
+            codeSpan.className = 'term-code';
+            codeSpan.textContent = line;
+            div.appendChild(codeSpan);
+        } else if (type === 'output') {
+            const prompt = document.createElement('span');
+            prompt.className = 'term-prompt';
+            prompt.textContent = '◀ ';
+            div.appendChild(prompt);
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'term-output-text';
+            textSpan.textContent = line;
+            div.appendChild(textSpan);
+        } else {
+            div.textContent = line;
+        }
+
+        termOutput.appendChild(div);
+    });
+    scrollTerminal();
+}
+
+function scrollTerminal() {
+    termBody.scrollTop = termBody.scrollHeight;
+}
+
+// ─── Run Button ─────────────────────────────────────────────────
+termRunBtn.addEventListener('click', () => {
+    executeCode(termInput.value);
+});
+
+// ─── Keyboard shortcuts ─────────────────────────────────────────
+termInput.addEventListener('keydown', (e) => {
+    // Ctrl+Enter or Ctrl+Shift+Enter to run
+    if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        executeCode(termInput.value);
+    }
+    // Enter (if not shift) - run single line
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        executeCode(termInput.value);
+    }
+    // Arrow up/down for history
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (TERM.historyIndex > 0) {
+            TERM.historyIndex--;
+            termInput.value = TERM.history[TERM.historyIndex] || '';
+        }
+    }
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (TERM.historyIndex < TERM.history.length - 1) {
+            TERM.historyIndex++;
+            termInput.value = TERM.history[TERM.historyIndex] || '';
+        } else {
+            TERM.historyIndex = TERM.history.length;
+            termInput.value = '';
+        }
+    }
+});
+
+// ─── Clear ──────────────────────────────────────────────────────
+document.getElementById('termClear').addEventListener('click', () => {
+    termOutput.innerHTML = '';
+    termInput.value = '';
+    termInput.focus();
+});
+
+// ─── Snippets ───────────────────────────────────────────────────
+document.querySelectorAll('.snippet-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const code = this.dataset.code.replace(/&#10;/g, '\n');
+        const lang = this.dataset.lang;
+
+        // Switch tab if needed
+        if (lang !== TERM.language) {
+            document.querySelectorAll('.term-tab').forEach(t => {
+                if (t.dataset.lang === lang) t.click();
+            });
+        }
+
+        termInput.value = code;
+        termInput.style.height = 'auto';
+        termInput.style.height = Math.min(termInput.scrollHeight, 120) + 'px';
+        termInput.focus();
+        showToast('📋 Snippet loaded! Press Enter to run.', 'info');
+    });
+});
+
+// ─── Run file from URL param ────────────────────────────────────
+const runLoadedFileBtn = document.getElementById('runLoadedFile');
+if (runLoadedFileBtn) {
+    runLoadedFileBtn.addEventListener('click', async () => {
+        const params = new URLSearchParams(window.location.search);
+        const file = params.get('file');
+        const lang = params.get('lang') || 'python';
+
+        if (!file) return;
+
+        runLoadedFileBtn.disabled = true;
+        runLoadedFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+
+        try {
+            const res = await fetch('/api/terminal/run-file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: file, language: lang }),
+            });
+            const data = await res.json();
+
+            // Switch to correct tab
+            if (lang !== TERM.language) {
+                document.querySelectorAll('.term-tab').forEach(t => {
+                    if (t.dataset.lang === lang) t.click();
+                });
+            }
+
+            addOutputLine(`$ python ${file}`, 'input');
+            addOutputLine(data.output || '(no output)', 'output');
+        } catch (e) {
+            addOutputLine('Error running file.', 'error');
+        } finally {
+            runLoadedFileBtn.disabled = false;
+            runLoadedFileBtn.innerHTML = '<i class="fas fa-play"></i> Execute File';
+        }
+    });
+}
+
+// ─── Focus input on load ────────────────────────────────────────
+termInput.focus();
+
+// ─── If file is passed in URL, auto-load info ───────────────────
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const file = params.get('file');
+    if (file) {
+        addOutputLine(`📂 Loaded: ${file}`, 'output');
+        addOutputLine('💡 Click "Execute File" to run it.', 'output');
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+# CloudHost Pro
+
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+static/uploads/*
+!static/uploads/.gitkeep
+users.json
+settings.json
+*.bak
+*.db
+.DS_Store

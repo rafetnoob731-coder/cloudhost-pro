@@ -1,0 +1,756 @@
+{% extends "base.html" %}
+{% block title %}File Manager — CloudHost Pro{% endblock %}
+
+{% block content %}
+
+<!-- ═══ FILE MANAGER ═══ -->
+<section class="fm-section section">
+    <div class="container">
+        <div class="section-header animate-fade-up">
+            <h2 class="section-title">
+                <i class="fas fa-folder-tree"></i> File Manager
+            </h2>
+            <p class="section-desc">Organize your files with folders. Drag & drop to upload anywhere.</p>
+        </div>
+
+        <div class="fm-layout animate-fade-up">
+            <!-- Sidebar: Tree + Actions -->
+            <aside class="fm-sidebar">
+                <div class="fm-actions">
+                    <button class="btn btn-primary btn-sm" id="newFolderBtn">
+                        <i class="fas fa-folder-plus"></i> New Folder
+                    </button>
+                    <button class="btn btn-outline btn-sm" id="uploadBtnSidebar">
+                        <i class="fas fa-cloud-upload-alt"></i> Upload
+                    </button>
+                </div>
+                <div class="fm-tree-container">
+                    <div class="fm-tree-header">
+                        <i class="fas fa-folder-open"></i> <span>Root</span>
+                    </div>
+                    <div class="fm-tree" id="fileTree">
+                        <div class="tree-loader">
+                            <i class="fas fa-spinner fa-spin"></i> Loading...
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main: File list for selected folder -->
+            <main class="fm-main">
+                <div class="fm-breadcrumb" id="fmBreadcrumb">
+                    <span class="breadcrumb-item active" data-path="">Root</span>
+                </div>
+
+                <div class="fm-toolbar">
+                    <div class="search-box fm-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="fmSearch" placeholder="Filter files..." autocomplete="off">
+                    </div>
+                    <div class="fm-view-options">
+                        <button class="btn-icon active" data-view="grid" title="Grid view"><i class="fas fa-th"></i></button>
+                        <button class="btn-icon" data-view="list" title="List view"><i class="fas fa-list"></i></button>
+                    </div>
+                </div>
+
+                <div class="fm-dropzone" id="fmDropzone">
+                    <div class="fm-files" id="fmFiles">
+                        <div class="empty-state">
+                            <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+                            <h3>Select a folder</h3>
+                            <p>Choose a folder from the tree or create a new one.</p>
+                        </div>
+                    </div>
+
+                    <!-- Hidden upload input -->
+                    <input type="file" id="fmFileInput" class="file-input" multiple accept=".py,.zip,.js" hidden>
+
+                    <!-- Drop overlay -->
+                    <div class="fm-drop-overlay" id="fmDropOverlay">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h3>Drop files here</h3>
+                        <p>to upload to current folder</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ New Folder Modal ═══ -->
+<div class="modal" id="folderModal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3><i class="fas fa-folder-plus"></i> New Folder</h3>
+            <button class="modal-close" id="folderModalClose">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="folderName">Folder name</label>
+                <input type="text" id="folderName" class="form-input" placeholder="e.g. my-project" autocomplete="off">
+            </div>
+            <button class="btn btn-primary" id="createFolderBtn" style="width:100%;justify-content:center;margin-top:8px;">
+                <i class="fas fa-check"></i> Create Folder
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ Rename Modal ═══ -->
+<div class="modal" id="renameModal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3><i class="fas fa-pen"></i> Rename</h3>
+            <button class="modal-close" id="renameModalClose">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="renameInput">New name</label>
+                <input type="text" id="renameInput" class="form-input" placeholder="new-name.py" autocomplete="off">
+            </div>
+            <button class="btn btn-primary" id="renameConfirmBtn" style="width:100%;justify-content:center;margin-top:8px;">
+                <i class="fas fa-check"></i> Rename
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ─── File Manager State ─────────────────────────────────────────
+const FM = {
+    currentPath: '',
+    currentFiles: [],
+    treeData: [],
+    view: 'grid',
+    searchQuery: '',
+};
+
+// ─── Load Tree ──────────────────────────────────────────────────
+async function loadTree() {
+    const treeEl = document.getElementById('fileTree');
+    try {
+        const res = await fetch('/api/file-tree');
+        FM.treeData = await res.json();
+        renderTree(FM.treeData, treeEl, '');
+    } catch (e) {
+        treeEl.innerHTML = '<div class="tree-empty">Failed to load.</div>';
+    }
+}
+
+function renderTree(items, parentEl, basePath) {
+    parentEl.innerHTML = '';
+    if (!items || items.length === 0) {
+        parentEl.innerHTML = '<div class="tree-empty">Empty</div>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    ul.className = 'tree-list';
+
+    items.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'tree-item';
+        li.dataset.path = item.path || item.name;
+
+        const label = document.createElement('div');
+        label.className = 'tree-label';
+
+        if (item.type === 'directory') {
+            const toggle = document.createElement('span');
+            toggle.className = 'tree-toggle';
+            toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            label.appendChild(toggle);
+
+            const icon = document.createElement('span');
+            icon.className = 'tree-icon';
+            icon.textContent = '📁';
+            label.appendChild(icon);
+        } else {
+            const spacer = document.createElement('span');
+            spacer.className = 'tree-toggle tree-toggle-empty';
+            label.appendChild(spacer);
+
+            const icon = document.createElement('span');
+            icon.className = 'tree-icon';
+            icon.textContent = item.icon || '📄';
+            label.appendChild(icon);
+        }
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'tree-name';
+        nameSpan.textContent = item.name;
+        label.appendChild(nameSpan);
+
+        // Actions on right-click or hover
+        if (item.type === 'directory' || item.ext) {
+            const actions = document.createElement('span');
+            actions.className = 'tree-actions';
+
+            const renameBtn = document.createElement('button');
+            renameBtn.className = 'btn-icon btn-icon-xs';
+            renameBtn.innerHTML = '<i class="fas fa-pen"></i>';
+            renameBtn.title = 'Rename';
+            renameBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const path = item.type === 'directory' ? item.path : item.path;
+                openRenameModal(path, item.name);
+            });
+            actions.appendChild(renameBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn-icon btn-icon-xs delete-file';
+            delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            delBtn.title = 'Delete';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteTreeItem(item);
+            });
+            actions.appendChild(delBtn);
+
+            label.appendChild(actions);
+        }
+
+        li.appendChild(label);
+
+        if (item.type === 'directory' && item.children) {
+            const childContainer = document.createElement('div');
+            childContainer.className = 'tree-children';
+            childContainer.style.display = 'none';
+
+            const childUl = document.createElement('ul');
+            childUl.className = 'tree-list';
+            renderSubTree(item.children, childUl, item.path, item);
+            childContainer.appendChild(childUl);
+            li.appendChild(childContainer);
+
+            // Toggle
+            label.addEventListener('click', (e) => {
+                if (e.target.closest('.tree-actions')) return;
+                const isOpen = childContainer.style.display !== 'none';
+                childContainer.style.display = isOpen ? 'none' : 'block';
+                toggle.classList.toggle('open', !isOpen);
+                // Also load this folder's contents in main pane
+                loadFolderContents(item.path);
+            });
+
+            // Also select root dir on click
+            label.addEventListener('dblclick', () => {
+                loadFolderContents(item.path);
+            });
+        } else if (item.type !== 'directory') {
+            label.addEventListener('click', (e) => {
+                if (e.target.closest('.tree-actions')) return;
+                // Preview or select
+                if (item.ext === '.py' || item.ext === '.js') {
+                    previewFile(item.path);
+                }
+            });
+        }
+
+        ul.appendChild(li);
+    });
+
+    parentEl.appendChild(ul);
+}
+
+function renderSubTree(items, ul, basePath, parentItem) {
+    if (!items || items.length === 0) {
+        const emptyLi = document.createElement('li');
+        emptyLi.className = 'tree-item tree-empty-item';
+        emptyLi.textContent = '(empty)';
+        ul.appendChild(emptyLi);
+        return;
+    }
+
+    items.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'tree-item';
+        li.dataset.path = item.path || item.name;
+
+        const label = document.createElement('div');
+        label.className = 'tree-label';
+
+        if (item.type === 'directory') {
+            const toggle = document.createElement('span');
+            toggle.className = 'tree-toggle';
+            toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            label.appendChild(toggle);
+
+            const icon = document.createElement('span');
+            icon.className = 'tree-icon';
+            icon.textContent = '📁';
+            label.appendChild(icon);
+        } else {
+            const spacer = document.createElement('span');
+            spacer.className = 'tree-toggle tree-toggle-empty';
+            label.appendChild(spacer);
+
+            const icon = document.createElement('span');
+            icon.className = 'tree-icon';
+            icon.textContent = item.icon || '📄';
+            label.appendChild(icon);
+        }
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'tree-name';
+        nameSpan.textContent = item.name;
+        label.appendChild(nameSpan);
+
+        const actions = document.createElement('span');
+        actions.className = 'tree-actions';
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'btn-icon btn-icon-xs';
+        renameBtn.innerHTML = '<i class="fas fa-pen"></i>';
+        renameBtn.title = 'Rename';
+        renameBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openRenameModal(item.path, item.name);
+        });
+        actions.appendChild(renameBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-icon btn-icon-xs delete-file';
+        delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        delBtn.title = 'Delete';
+        delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteTreeItem(item);
+        });
+        actions.appendChild(delBtn);
+        label.appendChild(actions);
+
+        li.appendChild(label);
+
+        if (item.type === 'directory' && item.children) {
+            const childContainer = document.createElement('div');
+            childContainer.className = 'tree-children';
+            childContainer.style.display = 'none';
+
+            const childUl2 = document.createElement('ul');
+            childUl2.className = 'tree-list';
+            renderSubTree(item.children, childUl2, item.path, item);
+            childContainer.appendChild(childUl2);
+            li.appendChild(childContainer);
+
+            label.addEventListener('click', (e) => {
+                if (e.target.closest('.tree-actions')) return;
+                const isOpen = childContainer.style.display !== 'none';
+                childContainer.style.display = isOpen ? 'none' : 'block';
+                toggle.classList.toggle('open', !isOpen);
+                loadFolderContents(item.path);
+            });
+            label.addEventListener('dblclick', () => {
+                loadFolderContents(item.path);
+            });
+        } else if (item.type !== 'directory') {
+            label.addEventListener('click', (e) => {
+                if (e.target.closest('.tree-actions')) return;
+                if (item.ext === '.py' || item.ext === '.js') {
+                    previewFile(item.path);
+                }
+            });
+        }
+
+        ul.appendChild(li);
+    });
+}
+
+// ─── Load Folder Contents ───────────────────────────────────────
+async function loadFolderContents(path) {
+    FM.currentPath = path;
+    updateBreadcrumb(path);
+
+    const container = document.getElementById('fmFiles');
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon"><i class="fas fa-spinner fa-spin"></i></div><h3>Loading...</h3></div>';
+
+    try {
+        const res = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+        const files = await res.json();
+        FM.currentFiles = files;
+        renderFiles(files);
+    } catch (e) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon"><i class="fas fa-exclamation-circle"></i></div><h3>Error loading files</h3></div>';
+    }
+}
+
+function updateBreadcrumb(path) {
+    const bc = document.getElementById('fmBreadcrumb');
+    bc.innerHTML = '';
+
+    const parts = path ? path.split('/') : [];
+    const rootSpan = document.createElement('span');
+    rootSpan.className = `breadcrumb-item${path === '' ? ' active' : ''}`;
+    rootSpan.dataset.path = '';
+    rootSpan.textContent = 'Root';
+    rootSpan.addEventListener('click', () => loadFolderContents(''));
+    bc.appendChild(rootSpan);
+
+    let cumPath = '';
+    parts.forEach((part, i) => {
+        cumPath += (i > 0 ? '/' : '') + part;
+        const sep = document.createElement('span');
+        sep.className = 'breadcrumb-sep';
+        sep.textContent = '/';
+        bc.appendChild(sep);
+
+        const item = document.createElement('span');
+        item.className = `breadcrumb-item${i === parts.length - 1 ? ' active' : ''}`;
+        item.dataset.path = cumPath;
+        item.textContent = part;
+        if (i < parts.length - 1) {
+            item.addEventListener('click', () => loadFolderContents(cumPath));
+        }
+        bc.appendChild(item);
+    });
+}
+
+// ─── Render Files ────────────────────────────────────────────────
+function renderFiles(files) {
+    const container = document.getElementById('fmFiles');
+    const view = FM.view;
+    const query = FM.searchQuery.toLowerCase();
+
+    let filtered = files;
+    if (query) {
+        filtered = files.filter(f => f.name.toLowerCase().includes(query));
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                <h3>${query ? 'No matching files' : 'This folder is empty'}</h3>
+                <p>${query ? 'Try a different search.' : 'Upload files or create a folder.'}</p>
+            </div>`;
+        return;
+    }
+
+    if (view === 'grid') {
+        container.innerHTML = '<div class="fm-grid" id="fmGrid"></div>';
+        const grid = document.getElementById('fmGrid');
+
+        filtered.forEach((file, idx) => {
+            const card = document.createElement('div');
+            card.className = 'file-card fm-file-card';
+            card.style.animationDelay = `${idx * 0.03}s`;
+            card.innerHTML = `
+                <div class="file-card-icon" style="--file-color: ${file.color}">
+                    <span class="file-emoji">${file.icon}</span>
+                </div>
+                <div class="file-card-info">
+                    <h4 class="file-name" title="${file.name}">${file.name}</h4>
+                    <div class="file-meta">
+                        <span class="file-size"><i class="fas fa-database"></i> ${file.size_str}</span>
+                    </div>
+                </div>
+                <div class="file-card-actions">
+                    <button class="btn-icon copy-link" data-url="${file.download_url}" title="Copy link">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    ${file.ext === '.py' || file.ext === '.js' ? `<button class="btn-icon preview-file" data-file="${file.path}" title="Preview"><i class="fas fa-eye"></i></button>` : ''}
+                    <a href="${file.download_url}" class="btn-icon" title="Download" download="${file.name}">
+                        <i class="fas fa-download"></i>
+                    </a>
+                    <button class="btn-icon delete-file" data-file="${file.path}" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="btn-icon run-file" data-file="${file.path}" data-ext="${file.ext}" title="Run in Terminal">
+                        <i class="fas fa-terminal"></i>
+                    </button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } else {
+        container.innerHTML = '<div class="fm-list" id="fmList"></div>';
+        const list = document.getElementById('fmList');
+
+        filtered.forEach((file, idx) => {
+            const row = document.createElement('div');
+            row.className = 'fm-list-row';
+            row.style.animationDelay = `${idx * 0.03}s`;
+            row.innerHTML = `
+                <div class="fm-list-icon" style="--file-color: ${file.color}">
+                    <span>${file.icon}</span>
+                </div>
+                <div class="fm-list-name" title="${file.name}">${file.name}</div>
+                <div class="fm-list-size">${file.size_str}</div>
+                <div class="fm-list-date">${file.uploaded}</div>
+                <div class="fm-list-actions">
+                    <button class="btn-icon copy-link" data-url="${file.download_url}" title="Copy link">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    ${file.ext === '.py' || file.ext === '.js' ? `<button class="btn-icon preview-file" data-file="${file.path}" title="Preview"><i class="fas fa-eye"></i></button>` : ''}
+                    <a href="${file.download_url}" class="btn-icon" title="Download" download="${file.name}"><i class="fas fa-download"></i></a>
+                    <button class="btn-icon delete-file" data-file="${file.path}" title="Delete"><i class="fas fa-trash"></i></button>
+                    <button class="btn-icon run-file" data-file="${file.path}" data-ext="${file.ext}" title="Run in Terminal"><i class="fas fa-terminal"></i></button>
+                </div>
+            `;
+            list.appendChild(row);
+        });
+    }
+
+    // Re-bind events
+    bindFileEvents();
+}
+
+function bindFileEvents() {
+    // Copy link
+    document.querySelectorAll('.copy-link').forEach(btn => {
+        btn.addEventListener('click', function() {
+            navigator.clipboard.writeText(this.dataset.url).then(() => {
+                showToast('Link copied!', 'success');
+            });
+        });
+    });
+
+    // Preview
+    document.querySelectorAll('.preview-file').forEach(btn => {
+        btn.addEventListener('click', function() {
+            previewFile(this.dataset.file);
+        });
+    });
+
+    // Delete
+    document.querySelectorAll('.delete-file').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const path = this.dataset.file;
+            if (confirm(`Delete "${path}"?`)) {
+                deleteFile(path);
+            }
+        });
+    });
+
+    // Run in terminal
+    document.querySelectorAll('.run-file').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const path = this.dataset.file;
+            const ext = this.dataset.ext;
+            const lang = ext === '.py' ? 'python' : 'javascript';
+            window.open(`/terminal?file=${encodeURIComponent(path)}&lang=${lang}`, '_blank');
+        });
+    });
+}
+
+// ─── File Operations ────────────────────────────────────────────
+async function deleteFile(path) {
+    try {
+        const res = await fetch(`/delete/${encodeURIComponent(path)}`, { method: 'POST' });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            loadFolderContents(FM.currentPath);
+            loadTree(); // Refresh tree
+        }
+    } catch (e) {
+        showToast('Error deleting file.', 'error');
+    }
+}
+
+async function deleteTreeItem(item) {
+    const path = item.path || item.name;
+    if (!confirm(`Delete "${path}"?`)) return;
+    await deleteFile(path);
+}
+
+async function previewFile(path) {
+    try {
+        const res = await fetch(`/preview/${encodeURIComponent(path)}`);
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('previewTitle').textContent = data.name;
+            document.getElementById('previewCode').textContent = data.content;
+            document.getElementById('previewModal').classList.add('active');
+        } else {
+            showToast(data.message, 'error');
+        }
+    } catch (e) {
+        showToast('Error previewing file.', 'error');
+    }
+}
+
+// ─── Rename ──────────────────────────────────────────────────────
+let renameTarget = '';
+
+function openRenameModal(path, currentName) {
+    renameTarget = path;
+    document.getElementById('renameInput').value = currentName;
+    document.getElementById('renameModal').classList.add('active');
+}
+
+document.getElementById('renameConfirmBtn').addEventListener('click', async () => {
+    const newName = document.getElementById('renameInput').value.trim();
+    if (!newName) return;
+
+    try {
+        const res = await fetch('/api/rename', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ oldPath: renameTarget, newName }),
+        });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            document.getElementById('renameModal').classList.remove('active');
+            loadFolderContents(FM.currentPath);
+            loadTree();
+        }
+    } catch (e) {
+        showToast('Error renaming.', 'error');
+    }
+});
+
+document.getElementById('renameModalClose').addEventListener('click', () => {
+    document.getElementById('renameModal').classList.remove('active');
+});
+
+// ─── New Folder ──────────────────────────────────────────────────
+document.getElementById('newFolderBtn').addEventListener('click', () => {
+    document.getElementById('folderName').value = '';
+    document.getElementById('folderModal').classList.add('active');
+});
+
+document.getElementById('createFolderBtn').addEventListener('click', async () => {
+    const name = document.getElementById('folderName').value.trim();
+    if (!name) return;
+
+    try {
+        const res = await fetch('/api/folder/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name, parent: FM.currentPath }),
+        });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            document.getElementById('folderModal').classList.remove('active');
+            loadTree();
+            loadFolderContents(FM.currentPath);
+        }
+    } catch (e) {
+        showToast('Error creating folder.', 'error');
+    }
+});
+
+document.getElementById('folderModalClose').addEventListener('click', () => {
+    document.getElementById('folderModal').classList.remove('active');
+});
+
+// Close modals on backdrop
+document.querySelectorAll('.modal-backdrop').forEach(bd => {
+    bd.addEventListener('click', function() {
+        this.parentElement.classList.remove('active');
+    });
+});
+
+// ─── Upload via Sidebar ──────────────────────────────────────────
+document.getElementById('uploadBtnSidebar').addEventListener('click', () => {
+    document.getElementById('fmFileInput').click();
+});
+
+document.getElementById('fmFileInput').addEventListener('change', async function() {
+    const files = this.files;
+    if (!files.length) return;
+
+    const formData = new FormData();
+    for (let f of files) {
+        formData.append('file', f);
+    }
+    formData.append('path', FM.currentPath);
+
+    try {
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            loadFolderContents(FM.currentPath);
+            loadTree();
+        }
+    } catch (e) {
+        showToast('Upload failed.', 'error');
+    }
+    this.value = '';
+});
+
+// ─── Drag & Drop ─────────────────────────────────────────────────
+const fmDropzone = document.getElementById('fmDropzone');
+const fmDropOverlay = document.getElementById('fmDropOverlay');
+
+fmDropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fmDropOverlay.style.display = 'flex';
+});
+
+fmDropzone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    fmDropOverlay.style.display = 'none';
+});
+
+fmDropzone.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    fmDropOverlay.style.display = 'none';
+
+    const files = e.dataTransfer.files;
+    if (!files.length) return;
+
+    // Check file types
+    for (let f of files) {
+        const ext = '.' + f.name.split('.').pop().toLowerCase();
+        if (!['.py', '.zip', '.js'].includes(ext)) {
+            showToast(`❌ "${f.name}" — Only .py, .zip, .js allowed.`, 'error');
+            return;
+        }
+    }
+
+    const formData = new FormData();
+    for (let f of files) {
+        formData.append('file', f);
+    }
+    formData.append('path', FM.currentPath);
+
+    try {
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            loadFolderContents(FM.currentPath);
+            loadTree();
+        }
+    } catch (e) {
+        showToast('Upload failed.', 'error');
+    }
+});
+
+// ─── View Toggle ─────────────────────────────────────────────────
+document.querySelectorAll('.fm-view-options .btn-icon').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.fm-view-options .btn-icon').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        FM.view = this.dataset.view;
+        renderFiles(FM.currentFiles);
+    });
+});
+
+// ─── Search ──────────────────────────────────────────────────────
+document.getElementById('fmSearch').addEventListener('input', function() {
+    FM.searchQuery = this.value;
+    renderFiles(FM.currentFiles);
+});
+
+// ─── Init ────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    loadTree();
+    loadFolderContents('');
+});
+
+// ─── Override global preview modal close ─────────────────────────
+document.getElementById('previewClose').addEventListener('click', () => {
+    document.getElementById('previewModal').classList.remove('active');
+});
+</script>
+{% endblock %}

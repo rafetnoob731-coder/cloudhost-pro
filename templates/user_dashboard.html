@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if file_manager %}My Files{% else %}Dashboard{% endif %} — {{ username }}</title>
+    <meta name="description" content="User Dashboard">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .user-body { background: var(--bg-primary); min-height: 100vh; }
+        .user-topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 32px; background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 100;
+        }
+        .user-topbar-left { display: flex; align-items: center; gap: 12px; }
+        .user-topbar-left .brand { font-size: 1.1rem; font-weight: 800; }
+        .user-topbar-right { display: flex; align-items: center; gap: 10px; }
+        .user-badge {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 14px; background: rgba(108,92,231,0.1);
+            border-radius: 50px; font-size: 0.82rem; font-weight: 500;
+        }
+        .user-badge i { color: var(--accent-1); }
+        .user-container { max-width: 1100px; margin: 0 auto; padding: 32px; }
+        .user-header { margin-bottom: 28px; }
+        .user-header h1 { font-size: 1.6rem; font-weight: 800; margin-bottom: 4px; }
+        .user-header p { color: var(--text-muted); font-size: 0.9rem; }
+
+        /* Resource Cards */
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px; margin-bottom: 32px;
+        }
+        .resource-card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); padding: 22px; transition: var(--transition);
+        }
+        .resource-card:hover {
+            border-color: rgba(108,92,231,0.3);
+            transform: translateY(-2px); box-shadow: var(--shadow-glow);
+        }
+        .resource-card .rc-icon { font-size: 1.8rem; margin-bottom: 10px; display:block; }
+        .resource-card .rc-value {
+            font-size: 1.5rem; font-weight: 800; display: block;
+        }
+        .resource-card .rc-label {
+            font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 2px;
+        }
+        .resource-card .rc-bar {
+            width: 100%; height: 6px; background: var(--bg-primary);
+            border-radius: 3px; overflow: hidden; margin-top: 12px;
+        }
+        .resource-card .rc-bar-fill {
+            height: 100%; border-radius: 3px; transition: width 1s ease;
+        }
+        .rc-bar-fill.green { background: var(--gradient-2); }
+        .rc-bar-fill.yellow { background: linear-gradient(135deg, #fdcb6e, #e17055); }
+        .rc-bar-fill.red { background: var(--gradient-3); }
+
+        .resource-card .rc-detail {
+            font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;
+        }
+
+        .grad-1 { background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .grad-2 { background: var(--gradient-2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+        /* Upload Zone */
+        .user-upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-md); padding: 40px;
+            text-align: center; transition: var(--transition);
+            cursor: pointer; margin-bottom: 28px;
+            background: rgba(108,92,231,0.02);
+        }
+        .user-upload-zone:hover, .user-upload-zone.drag-over {
+            border-color: var(--accent-1);
+            background: rgba(108,92,231,0.06);
+            box-shadow: var(--shadow-glow);
+        }
+        .user-upload-zone i { font-size: 2.5rem; color: var(--accent-1); margin-bottom: 10px; }
+        .user-upload-zone h3 { font-size: 1.1rem; margin-bottom: 4px; }
+        .user-upload-zone p { color: var(--text-muted); font-size: 0.85rem; }
+        .user-upload-zone .allowed { margin-top: 12px; display: flex; gap: 8px; justify-content: center; }
+
+        .user-section-title {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .user-section-title h2 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .user-section-title h2 i { color: var(--accent-1); }
+
+        .user-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+        }
+
+        .user-empty {
+            text-align: center; padding: 60px 20px; color: var(--text-muted);
+        }
+        .user-empty i { font-size: 3rem; opacity: 0.4; margin-bottom: 12px; display:block; }
+
+        /* User File Manager Table */
+        .user-table-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+        .user-table {
+            width: 100%; border-collapse: collapse; font-size: 0.85rem;
+        }
+        .user-table th {
+            text-align: left; padding: 12px 16px; font-weight: 600;
+            color: var(--text-muted); font-size: 0.76rem; text-transform: uppercase;
+            letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.2);
+        }
+        .user-table td {
+            padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.03);
+            vertical-align: middle;
+        }
+        .user-table tr:hover td { background: rgba(108,92,231,0.03); }
+
+        @media (max-width: 768px) {
+            .user-container { padding: 16px; }
+            .user-topbar { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+            .resource-grid { grid-template-columns: repeat(2,1fr); }
+        }
+    </style>
+</head>
+<body class="user-body">
+
+    <!-- ═══ TOPBAR ═══ -->
+    <div class="user-topbar">
+        <div class="user-topbar-left">
+            <a href="{{ url_for('index') }}" style="display:flex;align-items:center;gap:8px;text-decoration:none;">
+                <span>⚡</span>
+                <span class="brand">CloudHost<span style="color:var(--accent-2)">Pro</span></span>
+            </a>
+        </div>
+        <div class="user-topbar-right">
+            <div class="user-badge">
+                <i class="fas fa-user"></i> {{ username }}
+            </div>
+            <a href="{{ url_for('user_dashboard') }}" class="btn btn-sm btn-outline">
+                <i class="fas fa-chart-pie"></i>
+            </a>
+            <a href="{{ url_for('user_files') }}" class="btn btn-sm btn-outline">
+                <i class="fas fa-folder-open"></i> My Files
+            </a>
+            <a href="{{ url_for('user_logout') }}" class="btn btn-sm btn-outline">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </div>
+
+    <div class="user-container">
+
+    {% if not file_manager %}
+        <!-- ═══ DASHBOARD ═══ -->
+        <div class="user-header animate-fade-up visible">
+            <h1>👋 Welcome, <span style="color:var(--accent-1)">{{ username }}</span></h1>
+            <p>Your hosting resources at a glance.</p>
+        </div>
+
+        <!-- Resource Cards -->
+        <div class="resource-grid animate-fade-up visible">
+            <!-- Storage -->
+            <div class="resource-card">
+                <span class="rc-icon">💾</span>
+                <span class="rc-value grad-1">{{ stats.storage_used_str }}</span>
+                <span class="rc-label">of {{ stats.storage_total_str }} used</span>
+                <div class="rc-bar">
+                    <div class="rc-bar-fill {{ 'green' if stats.storage_pct < 70 else 'yellow' if stats.storage_pct < 90 else 'red' }}" style="width:{{ stats.storage_pct }}%"></div>
+                </div>
+                <div class="rc-detail">{{ stats.storage_pct }}% of storage used</div>
+            </div>
+
+            <!-- RAM -->
+            <div class="resource-card">
+                <span class="rc-icon">🧠</span>
+                <span class="rc-value grad-2">{{ stats.ram }} MB</span>
+                <span class="rc-label">Allocated RAM</span>
+                <div class="rc-bar">
+                    <div class="rc-bar-fill green" style="width:60%"></div>
+                </div>
+                <div class="rc-detail">Dedicated memory for your scripts</div>
+            </div>
+
+            <!-- CPU -->
+            <div class="resource-card">
+                <span class="rc-icon">⚡</span>
+                <span class="rc-value grad-1">{{ stats.cpu }}</span>
+                <span class="rc-label">CPU Core{{ 's' if stats.cpu > 1 else '' }}</span>
+                <div class="rc-bar">
+                    <div class="rc-bar-fill green" style="width:100%"></div>
+                </div>
+                <div class="rc-detail">Processing power for execution</div>
+            </div>
+
+            <!-- Files -->
+            <div class="resource-card">
+                <span class="rc-icon">📁</span>
+                <span class="rc-value grad-2">{{ stats.total_files }}</span>
+                <span class="rc-label">of {{ stats.max_files }} files</span>
+                <div class="rc-bar">
+                    {% set file_pct = (stats.total_files / stats.max_files * 100)|round %}
+                    <div class="rc-bar-fill {{ 'green' if file_pct < 70 else 'yellow' if file_pct < 90 else 'red' }}" style="width:{{ file_pct }}%"></div>
+                </div>
+                <div class="rc-detail">{{ stats.files_left }} slots remaining</div>
+            </div>
+        </div>
+
+        <!-- Upload Zone -->
+        <div class="user-upload-zone animate-fade-up" id="userDropzone">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <h3>Upload to your account</h3>
+            <p>Drag & drop files or click to browse</p>
+            <div class="allowed">
+                <span class="type-badge python">🐍 .py</span>
+                <span class="type-badge zip">📦 .zip</span>
+                <span class="type-badge js">📜 .js</span>
+            </div>
+            <input type="file" id="userFileInput" class="file-input" multiple accept=".py,.zip,.js" hidden>
+            <div class="upload-progress" id="userUploadProgress" style="display:none;position:static;background:transparent;padding:20px 0;">
+                <div class="progress-bar" style="width:100%;">
+                    <div class="progress-fill" id="userProgressFill"></div>
+                </div>
+                <p class="progress-text" id="userProgressText">Uploading...</p>
+            </div>
+        </div>
+
+        <!-- Recent Files -->
+        <div class="user-section-title animate-fade-up">
+            <h2><i class="fas fa-history"></i> My Recent Files</h2>
+            {% if files|length > 6 %}
+            <a href="{{ url_for('user_files') }}" class="btn btn-sm btn-outline">View All</a>
+            {% endif %}
+        </div>
+
+        {% if files %}
+        <div class="user-grid animate-fade-up">
+            {% for f in files[:6] %}
+            <div class="file-card" style="animation:fade-up 0.3s ease both; animation-delay:{{ loop.index*0.05 }}s">
+                <div class="file-card-icon" style="--file-color:{{ f.color }}">
+                    <span class="file-emoji">{{ f.icon }}</span>
+                </div>
+                <div class="file-card-info">
+                    <h4 class="file-name" title="{{ f.name }}">{{ f.name }}</h4>
+                    <div class="file-meta">
+                        <span>{{ f.size_str }}</span>
+                        <span>{{ f.uploaded }}</span>
+                    </div>
+                </div>
+                <div class="file-card-actions">
+                    <a href="{{ f.download_url }}" class="btn-icon" title="Download"><i class="fas fa-download"></i></a>
+                    <button class="btn-icon copy-link" data-url="{{ f.download_url }}" title="Copy Link"><i class="fas fa-link"></i></button>
+                    <button class="btn-icon delete-file" data-file="{{ f.path }}" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="user-empty animate-fade-up">
+            <i class="fas fa-inbox"></i>
+            <h3>No files uploaded yet</h3>
+            <p>Upload your first Python, JS, or ZIP file above.</p>
+        </div>
+        {% endif %}
+
+    {% else %}
+        <!-- ═══ FILE MANAGER ═══ -->
+        <div class="user-header animate-fade-up visible">
+            <h1><i class="fas fa-folder-open" style="color:var(--accent-1)"></i> My Files</h1>
+            <p>Manage your uploaded files.</p>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" id="userUploadBtn"><i class="fas fa-cloud-upload-alt"></i> Upload</button>
+            <a href="{{ url_for('user_dashboard') }}" class="btn btn-outline btn-sm"><i class="fas fa-chart-pie"></i> Dashboard</a>
+        </div>
+
+        <div class="user-table-wrap animate-fade-up">
+            {% if files %}
+            <table class="user-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>Type</th>
+                        <th>Uploaded</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in files %}
+                    <tr>
+                        <td style="font-size:1.2rem;">{{ f.icon }}</td>
+                        <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ f.name }}">{{ f.name }}</td>
+                        <td>{{ f.size_str }}</td>
+                        <td><span class="type-badge {{ f.ext[1:] }}">{{ f.ext }}</span></td>
+                        <td style="color:var(--text-muted);font-size:0.8rem;">{{ f.uploaded }}</td>
+                        <td>
+                            <div style="display:flex;gap:4px;">
+                                <a href="{{ f.download_url }}" class="btn-icon" title="Download"><i class="fas fa-download"></i></a>
+                                <button class="btn-icon copy-link" data-url="{{ f.download_url }}" title="Copy"><i class="fas fa-link"></i></button>
+                                <button class="btn-icon delete-file" data-file="{{ f.path }}" title="Delete"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="user-empty">
+                <i class="fas fa-inbox"></i>
+                <h3>No Files</h3>
+                <p>Upload your first file.</p>
+            </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        function showToast(msg, type='info') {
+            const c = document.getElementById('toastContainer');
+            if(!c) return;
+            const t = document.createElement('div');
+            t.className = 'toast '+type;
+            t.innerHTML = msg;
+            c.appendChild(t);
+            setTimeout(()=>{t.classList.add('toast-out');setTimeout(()=>t.remove(),300)},3500);
+        }
+
+        // Copy link
+        document.querySelectorAll('.copy-link').forEach(b=>{
+            b.addEventListener('click',function(){
+                if(navigator.clipboard) {
+                    navigator.clipboard.writeText(this.dataset.url).then(()=>showToast('🔗 Copied!','success'));
+                }
+            });
+        });
+
+        // Delete
+        document.querySelectorAll('.delete-file').forEach(b=>{
+            b.addEventListener('click',async function(){
+                const f = this.dataset.file;
+                if(!confirm(`Delete "${f}"?`)) return;
+                try {
+                    const r = await fetch('/delete/'+encodeURIComponent(f),{method:'POST'});
+                    const d = await r.json();
+                    showToast(d.message, d.success?'success':'error');
+                    if(d.success) {
+                        const row = this.closest('tr') || this.closest('.file-card');
+                        if(row) { row.style.opacity='0'; setTimeout(()=>row.remove(),300); }
+                    }
+                } catch(e) { showToast('Error','error'); }
+            });
+        });
+
+        // Upload zone
+        const dz = document.getElementById('userDropzone');
+        const fi = document.getElementById('userFileInput');
+        const upBtn = document.getElementById('userUploadBtn');
+
+        if(dz && fi) {
+            dz.addEventListener('click', ()=>fi.click());
+            dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('drag-over');});
+            dz.addEventListener('dragleave', ()=>dz.classList.remove('drag-over'));
+            dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('drag-over'); if(e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);});
+            fi.addEventListener('change', function(){if(this.files.length) uploadFiles(this.files);});
+        }
+        if(upBtn && fi) {
+            upBtn.addEventListener('click', ()=>fi.click());
+        }
+
+        async function uploadFiles(files) {
+            // Validate
+            for(let f of files) {
+                const ext = '.'+f.name.split('.').pop().toLowerCase();
+                if(!['.py','.zip','.js'].includes(ext)) {
+                    showToast(`❌ "${f.name}" — Only .py, .zip, .js allowed.`,'error');
+                    return;
+                }
+            }
+
+            // Show progress
+            const prog = document.getElementById('userUploadProgress');
+            const fill = document.getElementById('userProgressFill');
+            const txt = document.getElementById('userProgressText');
+            if(prog) prog.style.display = 'block';
+
+            let pct = 0;
+            const iv = setInterval(()=>{
+                if(pct<90) { pct += Math.random()*15; if(fill) fill.style.width = Math.min(pct,90)+'%'; }
+            },200);
+
+            const fd = new FormData();
+            for(let f of files) fd.append('file', f);
+
+            try {
+                const r = await fetch('/api/user/upload', {method:'POST', body:fd});
+                const d = await r.json();
+                clearInterval(iv);
+                if(fill) fill.style.width = d.success?'100%':'0%';
+                if(txt) txt.textContent = d.success?'✅ Complete!':'❌ Failed';
+                showToast(d.message, d.success?'success':'error');
+                if(d.success) setTimeout(()=>location.reload(),800);
+            } catch(e) {
+                clearInterval(iv);
+                showToast('Upload failed.','error');
+            } finally {
+                setTimeout(()=>{if(prog) prog.style.display='none';},1500);
+            }
+        }
+    </script>
+
+</body>
+</html>

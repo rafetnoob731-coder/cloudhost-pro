@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CloudHost Pro — File Hosting{% endblock %}</title>
+    <meta name="description" content="Fast, secure file hosting for Python, JS & ZIP files.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+    <!-- ═══ NAVBAR ═══ -->
+    <nav class="navbar" id="navbar">
+        <div class="container nav-container">
+            <a href="{{ url_for('index') }}" class="nav-logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">CloudHost<span class="logo-accent">Pro</span></span>
+            </a>
+            <div class="nav-links" id="navLinks">
+                <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <a href="{{ url_for('browse') }}" class="nav-link {% if request.endpoint == 'browse' %}active{% endif %}">
+                    <i class="fas fa-folder-open"></i> Browse
+                </a>
+                <a href="{{ url_for('file_manager') }}" class="nav-link {% if request.endpoint == 'file_manager' %}active{% endif %}">
+                    <i class="fas fa-folder-tree"></i> Files
+                </a>
+                <a href="{{ url_for('terminal_page') }}" class="nav-link {% if request.endpoint == 'terminal_page' %}active{% endif %}">
+                    <i class="fas fa-terminal"></i> Terminal
+                </a>
+                {% if user_logged_in %}
+                <a href="{{ url_for('user_dashboard') }}" class="nav-link {% if request.endpoint == 'user_dashboard' %}active{% endif %}">
+                    <i class="fas fa-chart-pie"></i> Dashboard
+                </a>
+                <a href="{{ url_for('user_files') }}" class="nav-link {% if request.endpoint == 'user_files' %}active{% endif %}">
+                    <i class="fas fa-folder-open"></i> My Files
+                </a>
+                <a href="{{ url_for('user_logout') }}" class="nav-link" style="color:var(--accent-3);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+                <span class="nav-link" style="cursor:default;background:rgba(108,92,231,0.1);border-radius:50px;padding:6px 16px;">
+                    <i class="fas fa-user" style="color:var(--accent-1)"></i>
+                    <span style="font-weight:600;">{{ user_username }}</span>
+                </span>
+                {% else %}
+                <a href="{{ url_for('user_login_page') }}" class="nav-link {% if request.endpoint == 'user_login_page' %}active{% endif %} btn btn-primary btn-sm" style="padding:8px 20px;">
+                    <i class="fas fa-user-circle"></i> Sign In
+                </a>
+                {% endif %}
+            </div>
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ═══ TOAST CONTAINER ═══ -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ═══ MAIN CONTENT ═══ -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ═══ FOOTER ═══ -->
+    <footer class="footer">
+        <div class="container footer-container">
+            <div class="footer-brand">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">CloudHost<span class="logo-accent">Pro</span></span>
+                <p class="footer-tagline">Fast & secure file hosting for developers.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>Support</h4>
+                    <a href="#">Python (.py)</a>
+                    <a href="#">JavaScript (.js)</a>
+                    <a href="#">Archives (.zip)</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Limits</h4>
+                    <span>Max file size: 100 MB</span>
+                    <span>Auto-clean: 30 days</span>
+                    <span>Uptime: 99.9%</span>
+                </div>
+                <div class="footer-col">
+                    <h4>Community</h4>
+                    <a href="#" class="social-link"><i class="fab fa-telegram"></i> Telegram</a>
+                    <a href="#" class="social-link"><i class="fab fa-github"></i> GitHub</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Account</h4>
+                    <a href="{{ url_for('user_login_page') }}" class="social-link"><i class="fas fa-user-circle"></i> User Login</a>
+                    <a href="{{ url_for('user_login_page') }}" class="social-link"><i class="fas fa-shield-alt"></i> Admin Login</a>
+                    <span style="font-size:0.75rem;color:var(--text-muted);opacity:0.6;">🔒 Use admin/admin123</span>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 CloudHost Pro. Built with ❤️ for the community.</p>
+                <p class="footer-credit">Dev by <strong>VIP DARK GOD</strong> ⚡</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

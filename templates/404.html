@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}404 — Page Not Found{% endblock %}
+{% block content %}
+<section style="min-height:80vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px;">
+    <div class="animate-fade-up visible">
+        <div style="font-size:5rem;margin-bottom:16px;">🔍</div>
+        <h1 style="font-size:3rem;font-weight:900;margin-bottom:8px;">404</h1>
+        <p style="color:var(--text-muted);font-size:1.1rem;margin-bottom:24px;">Page not found.</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary"><i class="fas fa-home"></i> Back Home</a>
+    </div>
+</section>
+{% endblock %}

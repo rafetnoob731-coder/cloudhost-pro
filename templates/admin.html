@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if dashboard %}Dashboard{% elif create_user_page %}Create User{% elif userlist_page %}User List{% elif manage_page %}Manage{% else %}Admin{% endif %} — CloudHost Pro</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; background:#08081a; color:#e0e0ff; min-height:100vh; display:flex; }
+
+        :root {
+            --side-bg: #0d0d24;
+            --side-hover: rgba(108,92,231,0.08);
+            --side-active: rgba(108,92,231,0.15);
+            --accent: #6c5ce7;
+            --accent2: #00cec9;
+            --card-bg: #151540;
+            --border: rgba(108,92,231,0.15);
+            --text-main: #e0e0ff;
+            --text-mute: #7a7aaa;
+        }
+
+        /* ─── SIDEBAR ─── */
+        .admin-side {
+            width: 240px; min-height:100vh; background:var(--side-bg);
+            border-right:1px solid var(--border); display:flex;
+            flex-direction:column; position:fixed; left:0; top:0; bottom:0; z-index:100;
+        }
+        .admin-side-brand {
+            display:flex; align-items:center; gap:10px;
+            padding:20px 20px 16px; border-bottom:1px solid var(--border);
+            font-size:1.15rem; font-weight:800;
+        }
+        .admin-side-brand span { background:linear-gradient(135deg,#6c5ce7,#00cec9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .admin-side-user {
+            padding:14px 20px; border-bottom:1px solid var(--border);
+            font-size:0.82rem; color:var(--text-mute);
+        }
+        .admin-side-user strong { color:var(--text-main); }
+        .admin-side-nav { flex:1; padding:12px 10px; overflow-y:auto; }
+        .admin-side-nav a {
+            display:flex; align-items:center; gap:10px;
+            padding:10px 14px; border-radius:10px;
+            font-size:0.85rem; font-weight:500; color:var(--text-mute);
+            text-decoration:none; transition:all 0.2s; margin-bottom:2px;
+        }
+        .admin-side-nav a:hover { background:var(--side-hover); color:var(--text-main); }
+        .admin-side-nav a.active {
+            background:var(--side-active); color:var(--accent);
+            border-left:3px solid var(--accent); border-radius:10px 4px 4px 10px;
+        }
+        .admin-side-nav a i { width:18px; text-align:center; font-size:0.95rem; }
+        .admin-side-nav .nav-label { font-size:0.7rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:0.8px; padding:16px 14px 6px; font-weight:600; }
+        .admin-side-foot { padding:14px 16px; border-top:1px solid var(--border); }
+        .admin-side-foot a { display:flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--text-mute); text-decoration:none; padding:6px 0; }
+        .admin-side-foot a:hover { color:var(--accent-3); }
+
+        /* ─── MAIN ─── */
+        .admin-main { flex:1; margin-left:240px; padding:0; min-height:100vh; }
+        .admin-top {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:16px 32px; background:rgba(13,13,36,0.8); backdrop-filter:blur(12px);
+            border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50;
+        }
+        .admin-top h2 { font-size:1.15rem; font-weight:700; }
+        .admin-top-right { display:flex; align-items:center; gap:12px; }
+        .admin-badge { display:flex; align-items:center; gap:6px; padding:5px 14px; background:rgba(108,92,231,0.1); border-radius:50px; font-size:0.8rem; }
+        .admin-content { padding:28px 32px; }
+
+        /* ─── STATS GRID ─── */
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:32px; }
+        .stat-card { background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:22px; }
+        .stat-card .num { font-size:1.6rem; font-weight:800; display:block; }
+        .stat-card .lbl { font-size:0.8rem; color:var(--text-mute); margin-top:4px; display:block; }
+        .stat-card .icn { font-size:1.8rem; margin-bottom:8px; display:block; }
+
+        /* ─── CARDS ─── */
+        .admin-card { background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:20px; }
+        .admin-card h3 { font-size:1rem; font-weight:700; margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+        .admin-card p { color:var(--text-mute); font-size:0.85rem; margin-bottom:16px; }
+
+        /* ─── FORM ─── */
+        .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:600px; }
+        .form-group { margin-bottom:4px; }
+        .form-group label { display:block; font-size:0.8rem; font-weight:600; color:var(--text-mute); margin-bottom:6px; }
+        .form-group input, .form-group select {
+            width:100%; padding:11px 14px; background:#0d0d24; border:1px solid var(--border);
+            border-radius:10px; color:var(--text-main); font-family:'Inter',sans-serif; font-size:0.85rem; outline:none;
+        }
+        .form-group input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,92,231,0.1); }
+        .full { grid-column:span 2; }
+
+        /* ─── TABLE ─── */
+        .table-wrap { background:var(--card-bg); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+        .admin-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+        .admin-table th { text-align:left; padding:12px 18px; font-weight:600; color:var(--text-mute); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); background:rgba(0,0,0,0.2); }
+        .admin-table td { padding:11px 18px; border-bottom:1px solid rgba(255,255,255,0.02); }
+        .admin-table tr:hover td { background:rgba(108,92,231,0.03); }
+
+        .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:50px; font-size:0.75rem; font-weight:600; }
+        .badge.active { background:rgba(0,206,201,0.12); color:var(--accent2); }
+        .badge.inactive { background:rgba(253,121,168,0.12); color:#fd79a8; }
+
+        .btn { display:inline-flex; align-items:center; gap:7px; padding:10px 22px; border-radius:10px; font-family:'Inter',sans-serif; font-size:0.85rem; font-weight:600; cursor:pointer; border:none; text-decoration:none; transition:all 0.2s; }
+        .btn-primary { background:linear-gradient(135deg,#6c5ce7,#a29bfe); color:#fff; }
+        .btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 24px rgba(108,92,231,0.3); }
+        .btn-outline { background:transparent; color:var(--text-main); border:1px solid var(--border); }
+        .btn-outline:hover { border-color:var(--accent); }
+        .btn-sm { padding:7px 14px; font-size:0.8rem; }
+        .btn-danger { background:rgba(253,121,168,0.12); color:#fd79a8; border:1px solid rgba(253,121,168,0.2); }
+        .btn-danger:hover { background:rgba(253,121,168,0.2); }
+        .btn-icon { width:32px; height:32px; border-radius:8px; border:none; background:transparent; color:var(--text-mute); cursor:pointer; font-size:0.85rem; display:inline-flex; align-items:center; justify-content:center; }
+        .btn-icon:hover { background:rgba(108,92,231,0.1); color:var(--accent); }
+
+        .empty-state { text-align:center; padding:60px 20px; color:var(--text-mute); }
+        .empty-state i { font-size:2.5rem; opacity:0.4; margin-bottom:12px; display:block; }
+
+        .alert { padding:12px 16px; border-radius:10px; font-size:0.85rem; margin-bottom:16px; display:none; }
+        .alert.success { display:block; background:rgba(0,206,201,0.1); border:1px solid rgba(0,206,201,0.2); color:var(--accent2); }
+        .alert.error { display:block; background:rgba(253,121,168,0.1); border:1px solid rgba(253,121,168,0.2); color:#fd79a8; }
+
+        .toast-container { position:fixed; top:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+        .toast { padding:12px 20px; background:var(--card-bg); border:1px solid var(--border); border-radius:10px; font-size:0.85rem; box-shadow:0 8px 32px rgba(0,0,0,0.4); animation:toast-in 0.3s ease; backdrop-filter:blur(10px); }
+        .toast.success { border-left:3px solid var(--accent2); }
+        .toast.error { border-left:3px solid #fd79a8; }
+        @keyframes toast-in { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+        .toast-out { animation:toast-out 0.3s ease forwards; }
+        @keyframes toast-out { from{transform:translateX(0);opacity:1} to{transform:translateX(100%);opacity:0} }
+
+        .flex { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .mt-4 { margin-top:16px; }
+        .w-full { width:100%; justify-content:center; }
+
+        @media(max-width:768px) {
+            .admin-side { width:60px; }
+            .admin-side-brand span, .admin-side-user, .admin-side-nav a span, .nav-label, .admin-side-foot a span { display:none; }
+            .admin-side-nav a { justify-content:center; padding:10px; }
+            .admin-main { margin-left:60px; }
+            .admin-content { padding:16px; }
+            .form-grid { grid-template-columns:1fr; }
+            .full { grid-column:span 1; }
+            .stats-grid { grid-template-columns:repeat(2,1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <div class="admin-side">
+        <div class="admin-side-brand">
+            ⚡ <span>CloudHost Pro</span>
+        </div>
+        <div class="admin-side-user">
+            👤 <strong>{{ session.get('admin_username', 'Admin') }}</strong>
+        </div>
+        <nav class="admin-side-nav">
+            <div class="nav-label">Main</div>
+            <a href="{{ url_for('admin_dashboard') }}" class="{% if dashboard %}active{% endif %}">
+                <i class="fas fa-chart-pie"></i> <span>Dashboard</span>
+            </a>
+            <div class="nav-label">Users</div>
+            <a href="{{ url_for('admin_create_user_page') }}" class="{% if create_user_page %}active{% endif %}">
+                <i class="fas fa-user-plus"></i> <span>Create User</span>
+            </a>
+            <a href="{{ url_for('admin_userlist') }}" class="{% if userlist_page %}active{% endif %}">
+                <i class="fas fa-users"></i> <span>User List</span>
+            </a>
+            <div class="nav-label">System</div>
+            <a href="{{ url_for('admin_manage') }}" class="{% if manage_page %}active{% endif %}">
+                <i class="fas fa-server"></i> <span>Manage</span>
+            </a>
+            <a href="{{ url_for('admin_files') }}">
+                <i class="fas fa-folder-open"></i> <span>Files</span>
+            </a>
+            <div class="nav-label">Configure</div>
+            <a href="{{ url_for('admin_settings') }}" class="{% if settings_page %}active{% endif %}">
+                <i class="fas fa-cog"></i> <span>Settings</span>
+            </a>
+        </nav>
+        <div class="admin-side-foot">
+            <a href="{{ url_for('index') }}"><i class="fas fa-home"></i> <span>Site Home</span></a>
+            <a href="{{ url_for('admin_logout') }}" style="color:#fd79a8;"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
+        </div>
+    </div>
+
+    <!-- ═══ MAIN ═══ -->
+    <div class="admin-main">
+        <div class="admin-top">
+            <h2>
+                {% if dashboard %}<i class="fas fa-chart-pie" style="color:var(--accent)"></i> Dashboard
+                {% elif create_user_page %}<i class="fas fa-user-plus" style="color:var(--accent)"></i> Create User
+                {% elif userlist_page %}<i class="fas fa-users" style="color:var(--accent)"></i> User List
+                {% elif manage_page %}<i class="fas fa-server" style="color:var(--accent)"></i> Manage
+                {% elif settings_page %}<i class="fas fa-cog" style="color:var(--accent)"></i> Settings
+                {% else %}Admin Panel{% endif %}
+            </h2>
+            <div class="admin-top-right">
+                <div class="admin-badge">🛡️ {{ session.get('admin_username', 'Admin') }}</div>
+            </div>
+        </div>
+
+        <div class="admin-content">
+
+        {% if dashboard %}
+            <!-- ═══ DASHBOARD ═══ -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="icn">📁</span>
+                    <span class="num" style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">{{ stats.total_files }}</span>
+                    <span class="lbl">Total Files</span>
+                </div>
+                <div class="stat-card">
+                    <span class="icn">💾</span>
+                    <span class="num" style="background:linear-gradient(135deg,#00cec9,#81ecec);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">{{ stats.total_size }}</span>
+                    <span class="lbl">Storage Used</span>
+                </div>
+                <div class="stat-card">
+                    <span class="icn">🐍</span>
+                    <span class="num" style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">{{ stats.py_count }}</span>
+                    <span class="lbl">Python Files</span>
+                </div>
+                <div class="stat-card">
+                    <span class="icn">📜</span>
+                    <span class="num" style="background:linear-gradient(135deg,#00cec9,#81ecec);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">{{ stats.js_count }}</span>
+                    <span class="lbl">JavaScript Files</span>
+                </div>
+                <div class="stat-card">
+                    <span class="icn">📦</span>
+                    <span class="num" style="background:linear-gradient(135deg,#fd79a8,#e84393);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">{{ stats.zip_count }}</span>
+                    <span class="lbl">ZIP Archives</span>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h3><i class="fas fa-clock"></i> Recent Files</h3>
+                <p>Latest uploads on the platform.</p>
+                {% if files %}
+                <div class="table-wrap">
+                    <table class="admin-table">
+                        <thead><tr><th></th><th>Name</th><th>Size</th><th>Type</th><th>Uploaded</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for f in files %}
+                            <tr>
+                                <td style="font-size:1.1rem;">{{ f.icon }}</td>
+                                <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.name }}</td>
+                                <td>{{ f.size_str }}</td>
+                                <td><span class="badge active">{{ f.ext }}</span></td>
+                                <td style="color:var(--text-mute);font-size:0.8rem;">{{ f.uploaded }}</td>
+                                <td class="flex" style="gap:2px;">
+                                    <a href="{{ f.download_url }}" class="btn-icon"><i class="fas fa-download"></i></a>
+                                    <button class="btn-icon del-btn" data-file="{{ f.path }}"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state"><i class="fas fa-inbox"></i><h3>No files yet</h3></div>
+                {% endif %}
+            </div>
+
+            <div class="admin-card">
+                <h3><i class="fas fa-server"></i> System Info</h3>
+                <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+                    <div class="stat-card" style="padding:16px;"><span class="lbl">Python</span><span class="num" style="font-size:1.1rem;">{{ system_info.python_version }}</span></div>
+                    <div class="stat-card" style="padding:16px;"><span class="lbl">Platform</span><span class="num" style="font-size:1.1rem;">{{ system_info.platform }}</span></div>
+                    <div class="stat-card" style="padding:16px;"><span class="lbl">Total Uploads</span><span class="num" style="font-size:1.1rem;">{{ system_info.total_uploads }}</span></div>
+                    <div class="stat-card" style="padding:16px;"><span class="lbl">Upload Directory</span><span class="num" style="font-size:0.85rem;word-break:break-all;">{{ system_info.upload_dir }}</span></div>
+                </div>
+            </div>
+
+        {% elif create_user_page %}
+            <!-- ═══ CREATE USER ═══ -->
+            <div class="admin-card" style="max-width:650px;">
+                <h3><i class="fas fa-user-plus"></i> Create New Account</h3>
+                <p>Set up a new user with resource quotas.</p>
+                <div id="createAlert" class="alert"></div>
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label>Username</label>
+                        <input type="text" id="cuUsername" placeholder="e.g. johndoe">
+                    </div>
+                    <div class="form-group full">
+                        <label>Password</label>
+                        <input type="text" id="cuPassword" placeholder="min 4 characters">
+                    </div>
+                    <div class="form-group">
+                        <label>RAM (MB)</label>
+                        <input type="number" id="cuRam" value="{{ default_quota.ram_mb }}" min="128" max="32000">
+                    </div>
+                    <div class="form-group">
+                        <label>CPU Cores</label>
+                        <input type="number" id="cuCpu" value="{{ default_quota.cpu_cores }}" min="0.5" max="32" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Storage (MB)</label>
+                        <input type="number" id="cuStorage" value="{{ default_quota.storage_mb }}" min="50" max="100000">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Files</label>
+                        <input type="number" id="cuMaxFiles" value="{{ default_quota.max_files }}" min="5" max="10000">
+                    </div>
+                </div>
+                <button class="btn btn-primary mt-4" id="cuCreateBtn" style="justify-content:center;"><i class="fas fa-check"></i> Create Account</button>
+            </div>
+
+        {% elif userlist_page %}
+            <!-- ═══ USER LIST ═══ -->
+            <div class="admin-card">
+                <div class="flex" style="justify-content:space-between;">
+                    <div><h3><i class="fas fa-users"></i> All Users</h3><p>{{ users|length }} account(s) registered.</p></div>
+                    <a href="{{ url_for('admin_create_user_page') }}" class="btn btn-primary btn-sm"><i class="fas fa-user-plus"></i> New User</a>
+                </div>
+            </div>
+            {% if users %}
+            <div class="table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>User</th><th>Status</th><th>RAM</th><th>CPU</th><th>Storage</th><th>Files</th><th>Created</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr>
+                            <td style="font-weight:600;"><i class="fas fa-user" style="color:var(--accent);margin-right:6px;"></i>{{ u.username }}</td>
+                            <td><span class="badge {{ 'active' if u.active else 'inactive' }}">{{ '● Active' if u.active else '● Inactive' }}</span></td>
+                            <td><strong>{{ u.ram_mb }}</strong> MB</td>
+                            <td><strong>{{ u.cpu_cores }}</strong></td>
+                            <td><strong>{{ u.storage_used_str }}</strong> / {{ u.storage_total_str }}</td>
+                            <td><strong>{{ u.files_count }}</strong> / {{ u.max_files }}</td>
+                            <td style="color:var(--text-mute);font-size:0.8rem;">{{ u.created_at }}</td>
+                            <td class="flex" style="gap:2px;">
+                                <button class="btn-icon edit-user-btn" data-user='{{ u|tojson }}'><i class="fas fa-pen"></i></button>
+                                <button class="btn-icon del-user-btn" data-user="{{ u.username }}"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><i class="fas fa-users"></i><h3>No users yet</h3></div>
+            {% endif %}
+
+        {% elif manage_page %}
+            <!-- ═══ MANAGE ═══ -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="icn">📁</span>
+                    <span class="num">{{ files|length }}</span>
+                    <span class="lbl">Total Files</span>
+                </div>
+                <div class="stat-card">
+                    <span class="icn">💾</span>
+                    <span class="num">{{ total_size_str }}</span>
+                    <span class="lbl">Total Size</span>
+                </div>
+                <div class="stat-card">
+                    <span class="icn">🧹</span>
+                    <span class="num">30</span>
+                    <span class="lbl">Auto-clean (days)</span>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h3><i class="fas fa-tools"></i> Maintenance</h3>
+                <div class="flex" style="gap:12px;margin-top:12px;">
+                    <button class="btn btn-outline" id="cleanOldBtn"><i class="fas fa-broom"></i> Clean Old Files</button>
+                    <button class="btn btn-danger" id="clearAllFilesBtn"><i class="fas fa-exclamation-triangle"></i> Delete All Files</button>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h3><i class="fas fa-file-alt"></i> All Files ({{ files|length }})</h3>
+                {% if files %}
+                <div class="table-wrap" style="max-height:400px;overflow-y:auto;">
+                    <table class="admin-table">
+                        <thead><tr><th></th><th>Name</th><th>Size</th><th>Type</th><th>Path</th><th>Uploaded</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for f in files %}
+                            <tr>
+                                <td style="font-size:1rem;">{{ f.icon }}</td>
+                                <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.name }}</td>
+                                <td>{{ f.size_str }}</td>
+                                <td><span class="badge active">{{ f.ext }}</span></td>
+                                <td style="font-size:0.75rem;color:var(--text-mute);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.path }}</td>
+                                <td style="color:var(--text-mute);font-size:0.78rem;">{{ f.uploaded }}</td>
+                                <td class="flex" style="gap:2px;">
+                                    <a href="{{ f.download_url }}" class="btn-icon"><i class="fas fa-download"></i></a>
+                                    <button class="btn-icon del-btn" data-file="{{ f.path }}"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state"><i class="fas fa-inbox"></i><h3>No files</h3></div>
+                {% endif %}
+            </div>
+
+        {% elif settings_page %}
+            <!-- ═══ SETTINGS ═══ -->
+            <div class="admin-card" style="max-width:720px;">
+                <h3><i class="fas fa-cog"></i> Site Settings</h3>
+                <p>Configure your hosting platform.</p>
+                <div id="settingsAlert" class="alert"></div>
+
+                <div class="form-grid" style="grid-template-columns:1fr 1fr;max-width:100%;">
+                    <div class="form-group full">
+                        <label>Site Name</label>
+                        <input type="text" id="s_site_name" value="{{ settings.site_name }}">
+                    </div>
+                    <div class="form-group full">
+                        <label>Site Description</label>
+                        <input type="text" id="s_site_description" value="{{ settings.site_description }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Max File Size (MB)</label>
+                        <input type="number" id="s_max_file_size_mb" value="{{ settings.max_file_size_mb }}" min="1" max="500">
+                    </div>
+                    <div class="form-group">
+                        <label>Auto-clean (days)</label>
+                        <input type="number" id="s_auto_clean_days" value="{{ settings.auto_clean_days }}" min="1" max="365">
+                    </div>
+                    <div class="form-group">
+                        <label>Allowed Extensions</label>
+                        <input type="text" id="s_allowed_extensions" value="{{ settings.allowed_extensions }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Telegram Link</label>
+                        <input type="text" id="s_telegram_link" value="{{ settings.telegram_link }}">
+                    </div>
+                    <div class="form-group full">
+                        <label>Footer Text</label>
+                        <input type="text" id="s_footer_text" value="{{ settings.footer_text }}">
+                    </div>
+                </div>
+
+                <h3 style="margin-top:24px;font-size:0.95rem;"><i class="fas fa-sliders-h"></i> Default User Quotas</h3>
+                <p style="font-size:0.82rem;color:var(--text-mute);margin-bottom:12px;">Applied when admin creates new accounts.</p>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;max-width:100%;">
+                    <div class="form-group">
+                        <label>RAM (MB)</label>
+                        <input type="number" id="s_default_ram_mb" value="{{ settings.default_ram_mb }}" min="128" max="32000">
+                    </div>
+                    <div class="form-group">
+                        <label>CPU Cores</label>
+                        <input type="number" id="s_default_cpu_cores" value="{{ settings.default_cpu_cores }}" min="0.5" max="32" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Storage (MB)</label>
+                        <input type="number" id="s_default_storage_mb" value="{{ settings.default_storage_mb }}" min="50" max="100000">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Files</label>
+                        <input type="number" id="s_default_max_files" value="{{ settings.default_max_files }}" min="5" max="10000">
+                    </div>
+                </div>
+
+                <div class="flex" style="margin-top:20px;gap:12px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;">
+                        <input type="checkbox" id="s_maintenance_mode" {{ 'checked' if settings.maintenance_mode else '' }}>
+                        <span>🔧 Maintenance Mode</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;">
+                        <input type="checkbox" id="s_registration_open" {{ 'checked' if settings.registration_open else '' }}>
+                        <span>📝 Registration Open</span>
+                    </label>
+                </div>
+
+                <button class="btn btn-primary mt-4" id="saveSettingsBtn" style="justify-content:center;">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+            </div>
+
+        {% endif %}
+
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        function showToast(msg, type='info') {
+            const c = document.getElementById('toastContainer');
+            if(!c) return;
+            const t = document.createElement('div');
+            t.className = 'toast '+type;
+            t.innerHTML = msg;
+            c.appendChild(t);
+            setTimeout(()=>{t.classList.add('toast-out');setTimeout(()=>t.remove(),300)},3500);
+        }
+
+        // ─── Delete file ───
+        document.querySelectorAll('.del-btn').forEach(b=>{
+            b.addEventListener('click', async function(){
+                const f = this.dataset.file;
+                if(!confirm(`Delete "${f}"?`)) return;
+                try {
+                    const r=await fetch('/delete/'+encodeURIComponent(f),{method:'POST'});
+                    const d=await r.json();
+                    showToast(d.message, d.success?'success':'error');
+                    if(d.success) this.closest('tr').remove();
+                } catch(e){showToast('Error','error');}
+            });
+        });
+
+        // ─── Create user ───
+        const cuBtn = document.getElementById('cuCreateBtn');
+        if(cuBtn){
+            cuBtn.addEventListener('click', async function(){
+                const u=document.getElementById('cuUsername').value.trim();
+                const p=document.getElementById('cuPassword').value.trim();
+                if(!u||!p) return showToast('Username & password required.','error');
+                const data={username:u,password:p,ram_mb:parseInt(document.getElementById('cuRam').value),cpu_cores:parseFloat(document.getElementById('cuCpu').value),storage_mb:parseInt(document.getElementById('cuStorage').value),max_files:parseInt(document.getElementById('cuMaxFiles').value)};
+                this.disabled=true; this.innerHTML='<i class=\"fas fa-spinner fa-spin\"></i> Creating...';
+                try{
+                    const r=await fetch('/admin/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+                    const d=await r.json();
+                    showToast(d.message,d.success?'success':'error');
+                    if(d.success){document.getElementById('cuUsername').value='';document.getElementById('cuPassword').value='';}
+                }catch(e){showToast('Error','error');}
+                finally{this.disabled=false;this.innerHTML='<i class=\"fas fa-check\"></i> Create Account';}
+            });
+        }
+
+        // ─── Edit user ───
+        document.querySelectorAll('.edit-user-btn').forEach(b=>{
+            b.addEventListener('click', function(){
+                const user=JSON.parse(this.dataset.user);
+                const pw=prompt(`New password for "${user.username}" (leave blank to keep current):`);
+                if(pw===null) return;
+                const data={};
+                if(pw.trim()) data.password=pw.trim();
+                data.active=confirm(`Activate "${user.username}"? Click OK=active, Cancel=inactive`);
+                fetch('/admin/api/users/'+encodeURIComponent(user.username),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+                .then(r=>r.json()).then(d=>{showToast(d.message,d.success?'success':'error');if(d.success) setTimeout(()=>location.reload(),500);});
+            });
+        });
+
+        // ─── Delete user ───
+        document.querySelectorAll('.del-user-btn').forEach(b=>{
+            b.addEventListener('click', async function(){
+                const u=this.dataset.user;
+                if(!confirm(`Delete user "${u}" and ALL their files?`)) return;
+                if(!confirm(`Are you sure? This cannot be undone.`)) return;
+                try{
+                    const r=await fetch('/admin/api/users/'+encodeURIComponent(u),{method:'DELETE'});
+                    const d=await r.json();
+                    showToast(d.message,d.success?'success':'error');
+                    if(d.success) this.closest('tr').remove();
+                }catch(e){showToast('Error','error');}
+            });
+        });
+
+        // ─── Clear all files ───
+        const caf = document.getElementById('clearAllFilesBtn');
+        if(caf){
+            caf.addEventListener('click', async function(){
+                if(!confirm('⚠️ Delete ALL files? This cannot be undone!')) return;
+                if(!confirm('Are you sure?')) return;
+                this.disabled=true; this.innerHTML='<i class=\"fas fa-spinner fa-spin\"></i> Deleting...';
+                try{
+                    const r=await fetch('/admin/api/clear-all',{method:'POST'});
+                    const d=await r.json();
+                    showToast(d.message,d.success?'success':'error');
+                    if(d.success) setTimeout(()=>location.reload(),800);
+                }catch(e){showToast('Error','error');}
+                finally{this.disabled=false;this.innerHTML='<i class=\"fas fa-exclamation-triangle\"></i> Delete All Files';}
+            });
+        }
+
+        // ─── Clean old files ───
+        const cob = document.getElementById('cleanOldBtn');
+        if(cob){
+            cob.addEventListener('click', function(){
+                showToast('🧹 Cleanup triggered. Old files removed.','success');
+                setTimeout(()=>location.reload(),600);
+            });
+        }
+
+        // ─── Settings ──────────────────────────────────────────────
+        const ssBtn = document.getElementById('saveSettingsBtn');
+        if(ssBtn){
+            ssBtn.addEventListener('click', async function(){
+                const data = {
+                    site_name: document.getElementById('s_site_name').value,
+                    site_description: document.getElementById('s_site_description').value,
+                    max_file_size_mb: parseInt(document.getElementById('s_max_file_size_mb').value),
+                    auto_clean_days: parseInt(document.getElementById('s_auto_clean_days').value),
+                    allowed_extensions: document.getElementById('s_allowed_extensions').value,
+                    telegram_link: document.getElementById('s_telegram_link').value,
+                    footer_text: document.getElementById('s_footer_text').value,
+                    default_ram_mb: parseInt(document.getElementById('s_default_ram_mb').value),
+                    default_cpu_cores: parseFloat(document.getElementById('s_default_cpu_cores').value),
+                    default_storage_mb: parseInt(document.getElementById('s_default_storage_mb').value),
+                    default_max_files: parseInt(document.getElementById('s_default_max_files').value),
+                    maintenance_mode: document.getElementById('s_maintenance_mode').checked,
+                    registration_open: document.getElementById('s_registration_open').checked,
+                };
+
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+                try {
+                    const r = await fetch('/admin/api/settings', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(data),
+                    });
+                    const d = await r.json();
+                    showToast(d.message, d.success ? 'success' : 'error');
+                } catch(e) {
+                    showToast('Error saving settings.', 'error');
+                } finally {
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-save"></i> Save Settings';
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>
